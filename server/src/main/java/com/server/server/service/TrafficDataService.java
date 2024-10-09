@@ -1,10 +1,8 @@
-
 package com.server.server.service;
 import com.server.server.consumer.TrafficDataConsumer;
 import com.server.server.data.*;
 import com.server.server.mapper.TrafficDataMapper;
 import com.server.server.request.traffic.*;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;

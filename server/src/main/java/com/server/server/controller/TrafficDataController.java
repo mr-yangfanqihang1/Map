@@ -10,13 +10,19 @@ public class TrafficDataController {
     @Autowired
     private TrafficDataService trafficDataService;
 
-    @PostMapping
+    @PostMapping("/upload")
     public void uploadTrafficData(@RequestBody TrafficData trafficData) {
         trafficDataService.uploadTrafficData(trafficData);
+    }
+
+    @PostMapping("/update")
+    public void updateTrafficData(@RequestBody TrafficData trafficData) {
+        trafficDataService.updateTrafficData(trafficData);
     }
 
     @GetMapping("/road/{roadId}")
     public List<TrafficData> getTrafficDataByRoadId(@PathVariable int roadId) {
         return trafficDataService.getTrafficDataByRoadId(roadId);
     }
+
 }
