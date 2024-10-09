@@ -5,7 +5,6 @@ import java.util.concurrent.PriorityBlockingQueue;
 import com.server.server.data.*;
 import com.server.server.mapper.TrafficDataMapper;
 import com.server.server.request.traffic.*;
-
 public class TrafficDataConsumer implements Runnable {
     private final PriorityBlockingQueue<TrafficDataRequest> queue;
     private final TrafficDataMapper trafficDataMapper;
