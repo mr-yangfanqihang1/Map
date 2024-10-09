@@ -18,6 +18,7 @@ public class TrafficDataService {
     private TrafficDataMapper trafficDataMapper;
 
     // 动态优先级队列
+
     private final PriorityBlockingQueue<TrafficDataRequest> queue = new PriorityBlockingQueue<>();
     
     // 存储查询请求结果的映射
@@ -25,6 +26,7 @@ public class TrafficDataService {
 
     @PostConstruct
     public void init() {
+        System.out.println("Consumer thread starting...");
         // 启动消费者线程
         new Thread(new TrafficDataConsumer(queue, trafficDataMapper, queryResults)).start();
     }
