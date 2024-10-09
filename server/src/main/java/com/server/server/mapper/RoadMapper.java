@@ -8,9 +8,10 @@ import java.util.List;
 @Mapper
 public interface RoadMapper {
     
-    @Insert("INSERT INTO roads (name, status, load) VALUES (#{name}, #{status}, #{load})")
+    // @Insert("INSERT INTO roads (name, status, load) VALUES (#{name}, #{status}, #{load})")
+    // void insertRoad(Road road);
+    @Insert("INSERT INTO roads (start_point,end_point, name) VALUES (#{start_point},#{end_point},#{name})")
     void insertRoad(Road road);
-
     @Select("SELECT * FROM roads WHERE id = #{id}")
     Road getRoadById(int id);
 

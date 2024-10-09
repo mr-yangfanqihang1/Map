@@ -4,7 +4,6 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class Route {
-    private int id;
     private String startPoint;
     private String endPoint;
     private String pathData;

@@ -4,7 +4,8 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class Road {
-    private int id;
+    private String startPoint;
+    private String endPoint;
     private String name;
     private String status; // 可以是 ENUM 类型
     private float load;
