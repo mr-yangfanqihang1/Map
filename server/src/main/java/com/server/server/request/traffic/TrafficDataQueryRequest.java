@@ -5,6 +5,7 @@ public class TrafficDataQueryRequest extends TrafficDataRequest {
 
     public TrafficDataQueryRequest(int roadId) {
         this.roadId = roadId;
+        super.setPriority(2);
     }
 
     public int getRoadId() {

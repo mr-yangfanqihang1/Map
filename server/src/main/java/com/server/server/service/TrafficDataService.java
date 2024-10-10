@@ -2,6 +2,7 @@ package com.server.server.service;
 
 import com.server.server.consumer.TrafficDataConsumer;
 import com.server.server.data.*;
+import com.server.server.mapper.RoadMapper;
 import com.server.server.mapper.TrafficDataMapper;
 import com.server.server.request.traffic.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +18,8 @@ public class TrafficDataService {
     
     @Autowired
     private TrafficDataMapper trafficDataMapper;
-
+    @Autowired
+    private RoadMapper roadMapper;
     // 动态优先级队列
     private final PriorityBlockingQueue<TrafficDataRequest> queue = new PriorityBlockingQueue<>();
 
@@ -29,7 +31,7 @@ public class TrafficDataService {
 
     @PostConstruct
     public void init() {
-        // Initialize thread pool settings
+        // 初始化线程池设置
         taskExecutor.setCorePoolSize(5);
         taskExecutor.setMaxPoolSize(10);
         taskExecutor.setQueueCapacity(25);
@@ -37,8 +39,8 @@ public class TrafficDataService {
 
         System.out.println("Consumer thread pool initialized...");
         
-        // Submit the consumer task to the thread pool
-        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, queryResults));
+        // 将消费者任务提交到线程池
+        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper,roadMapper, queryResults));
     }
 
     public void uploadTrafficData(TrafficData trafficData) {

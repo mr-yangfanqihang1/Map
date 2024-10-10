@@ -8,5 +8,5 @@ public class Road {
     private String endPoint;
     private String name;
     private String status; // 可以是 ENUM 类型
-    private float load;
+    private int maxLoad;
 }

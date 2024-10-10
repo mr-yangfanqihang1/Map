@@ -12,7 +12,9 @@ public abstract class TrafficDataRequest implements Comparable<TrafficDataReques
         this.createdTime = System.currentTimeMillis();
         this.priority = 1; // 默认优先级
     }
-
+    public void setPriority(int priority) {
+        this.priority = priority;
+    }
     public void increasePriority() {
         this.priority++; // 增加优先级
     }

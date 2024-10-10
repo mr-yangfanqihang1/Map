@@ -16,5 +16,8 @@ public interface TrafficDataMapper {
     void updateTrafficData(TrafficData trafficData);
     @Select("SELECT * FROM traffic_data WHERE road_id = #{roadId}")
     List<TrafficData> getTrafficDataByRoadId(int roadId);
+    @Select("SELECT COUNT(DISTINCT user_id) FROM traffic_data WHERE road_id = #{roadId}")
+    int getUserCountByRoadId(int roadId);
+
 }
 

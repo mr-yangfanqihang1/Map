@@ -1,8 +1,7 @@
 package com.server.server.mapper;
 import com.server.server.data.*;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Select;
+
+import org.apache.ibatis.annotations.*;
 import java.util.List;
 
 @Mapper
@@ -17,4 +16,9 @@ public interface RoadMapper {
 
     @Select("SELECT * FROM roads")
     List<Road> getAllRoads();
+    @Select("SELECT max_load FROM roads WHERE id = #{id}")
+    int getMaxLoad(int id);
+    @Update("Update roads SET status=#{status} WHERE id=#{id}")
+    void updateRoadStatus(int id,String status);
+
 }

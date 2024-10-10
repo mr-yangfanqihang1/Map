@@ -5,6 +5,7 @@ public class TrafficDataInsertRequest extends TrafficDataRequest {
 
     public TrafficDataInsertRequest(TrafficData trafficData) {
         this.trafficData = trafficData;
+        super.setPriority(2);
     }
 
     public TrafficData getTrafficData() {

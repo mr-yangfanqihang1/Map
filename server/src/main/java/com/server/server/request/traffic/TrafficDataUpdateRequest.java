@@ -6,6 +6,8 @@ public class TrafficDataUpdateRequest extends TrafficDataRequest {
 
     public TrafficDataUpdateRequest(TrafficData trafficData) {
         this.trafficData = trafficData;
+        super.setPriority(2);
+
     }
 
     public TrafficData getTrafficData() {
