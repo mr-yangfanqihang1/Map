@@ -1,10 +1,12 @@
 package com.server.server.service;
+
 import com.server.server.consumer.TrafficDataConsumer;
 import com.server.server.data.*;
 import com.server.server.mapper.TrafficDataMapper;
 import com.server.server.request.traffic.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import javax.annotation.PostConstruct;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,21 +14,31 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 @Service
 public class TrafficDataService {
+    
     @Autowired
     private TrafficDataMapper trafficDataMapper;
 
     // 动态优先级队列
-
     private final PriorityBlockingQueue<TrafficDataRequest> queue = new PriorityBlockingQueue<>();
-    
+
     // 存储查询请求结果的映射
     private final ConcurrentHashMap<Integer, List<TrafficData>> queryResults = new ConcurrentHashMap<>();
 
+    // 线程池
+    private final ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+
     @PostConstruct
     public void init() {
-        System.out.println("Consumer thread starting...");
-        // 启动消费者线程
-        new Thread(new TrafficDataConsumer(queue, trafficDataMapper, queryResults)).start();
+        // Initialize thread pool settings
+        taskExecutor.setCorePoolSize(5);
+        taskExecutor.setMaxPoolSize(10);
+        taskExecutor.setQueueCapacity(25);
+        taskExecutor.initialize();
+
+        System.out.println("Consumer thread pool initialized...");
+        
+        // Submit the consumer task to the thread pool
+        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, queryResults));
     }
 
     public void uploadTrafficData(TrafficData trafficData) {
