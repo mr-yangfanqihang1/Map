@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.server.server.mapper.TrafficDataMapper">
+    <insert id="batchInsertTrafficData">
+        INSERT INTO traffic_data (road_id, user_id, speed, timestamp)
+        VALUES
+        <foreach collection="trafficDataList" item="item" separator=",">
+            (#{item.roadId}, #{item.userId}, #{item.speed}, #{item.timestamp})
+        </foreach>
+    </insert>
+
+    <update id="batchUpdateTrafficData">
+        <foreach collection="trafficDataList" item="item" separator=";">
+            UPDATE traffic_data
+            SET speed = #{item.speed}, timestamp = #{item.timestamp}, road_id = #{item.roadId}
+            WHERE user_id = #{item.userId}
+        </foreach>
+    </update>
+</mapper>
