@@ -44,17 +44,21 @@ public class TrafficDataService {
     }
 
     public void uploadTrafficData(TrafficData trafficData) {
+        long start = System.currentTimeMillis();
         // 将插入请求放入队列
         TrafficDataInsertRequest insertRequest = new TrafficDataInsertRequest(trafficData);
         queue.offer(insertRequest);
-        System.out.println("Insert request added to queue: " + trafficData);
+        long end = System.currentTimeMillis();
+        System.out.println("Insert request added to queue: " + trafficData+"\n"+"Add to queue time: "+(end-start)+"ms");
     }
 
     public void updateTrafficData(TrafficData trafficData) {
+        long start = System.currentTimeMillis();
         // 将更新请求放入队列
         TrafficDataUpdateRequest updateRequest = new TrafficDataUpdateRequest(trafficData);
         queue.offer(updateRequest);
-        System.out.println("Update request added to queue: " + trafficData);
+        long end = System.currentTimeMillis();
+        System.out.println("Update request added to queue: " + trafficData+"\n"+"Add to queue time: "+(end-start)+"ms");
     }
 
     public List<TrafficData> getTrafficDataByRoadId(int roadId) {

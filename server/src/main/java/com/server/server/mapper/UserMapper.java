@@ -8,13 +8,13 @@ import java.util.List;
 @Mapper
 public interface UserMapper {
     
-    @Insert("INSERT INTO users (username, location, preferences) VALUES (#{username}, #{location}, #{preferences})")
+    @Insert("INSERT INTO user (username, location, preferences) VALUES (#{username}, #{location}, #{preferences})")
     void insertUser(User user);
 
-    @Select("SELECT * FROM users WHERE id = #{id}")
+    @Select("SELECT * FROM user WHERE id = #{id}")
     User getUserById(int id);
 
-    @Select("SELECT * FROM users")
+    @Select("SELECT * FROM user")
     List<User> getAllUsers();
 }
 

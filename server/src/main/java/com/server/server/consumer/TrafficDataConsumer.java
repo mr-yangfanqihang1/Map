@@ -7,7 +7,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.ibatis.exceptions.PersistenceException;
-
 import com.server.server.data.*;
 import com.server.server.mapper.RoadMapper;
 import com.server.server.mapper.TrafficDataMapper;
