@@ -21,7 +21,7 @@ public class Road {
 
     // 带经纬度的构造函数
     public Road(String startPoint, String endPoint, double startLat, double startLong, 
-                double endLat, double endLong, double duration, double price,
+                double endLat, double endLong, double duration, double pricePerKm,
                 String name, String status, int maxLoad) {
         this.startPoint = startPoint;
         this.endPoint = endPoint;
@@ -34,9 +34,9 @@ public class Road {
 
         // 如果价格不为 0，则根据距离计算价格
         if (Math.abs(price - 0.0) > 1e-10) {
-            this.price = calculatePrice();
+            this.price = pricePerKm * this.distance;
         } else {
-            this.price = price;
+            this.price = 0;
         }
 
         this.name = name;
@@ -64,8 +64,7 @@ public class Road {
     }
 
     // 计算价格的方法
-    private double calculatePrice() {
-        double pricePerKm = 1.0; // 每公里的价格，可以根据实际情况调整
+    private double calculatePrice(double pricePerKm) {
         return pricePerKm * distance;
     }
 }
