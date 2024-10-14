@@ -18,5 +18,5 @@ public class Route {
     private String timestamp;
     private double weightDistance;  // 前端传来的距离权重
     private double weightDuration;  // 前端传来的时间权重
-    
+    private double price;  // 前端传来的时间权重
 }

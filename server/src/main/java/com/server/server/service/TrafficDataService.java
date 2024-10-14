@@ -77,6 +77,7 @@ public class TrafficDataService {
             }
         }
 
+        
         // 返回查询结果
         List<TrafficData> result = queryResults.get(roadId);
         queryResults.remove(roadId); // 清理已处理的结果
