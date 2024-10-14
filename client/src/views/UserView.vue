@@ -1,29 +1,45 @@
 <template>
-  <div>
-    <el-form :model="user" label-width="100px">
-      <el-form-item label="ID">
-        <el-input v-model="user.id" disabled></el-input>
-      </el-form-item>
-      <el-form-item label="用户名">
-        <el-input v-model="user.username"></el-input>
-      </el-form-item>
-      <el-form-item label="时间">
-        <el-input v-model.number="preferences.time" @input="validateInput('time')" type="number"></el-input>
-      </el-form-item>
-      <el-form-item label="价格">
-        <el-input v-model.number="preferences.price" @input="validateInput('price')" type="number"></el-input>
-      </el-form-item>
-      <el-form-item label="距离">
-        <el-input v-model.number="preferences.distance" @input="validateInput('distance')" type="number"></el-input>
-      </el-form-item>
+  <div class="container">
+    <!-- 左侧表格 -->
+    <div class="form-section">
+      <el-form :model="user" label-width="100px">
+        <el-form-item label="ID">
+          <el-input v-model="user.id" disabled></el-input>
+        </el-form-item>
+        <el-form-item label="用户名">
+          <el-input v-model="user.username"></el-input>
+        </el-form-item>
+        <el-form-item label-width="100px" style="margin-left:0%;">
+            <label style="color: black;font-size: large;font-weight: 800">偏好设置：</label>
+        </el-form-item>
+        <el-form-item label="时间">
+          <el-input v-model.number="preferences.time" @input="validateInput('time')" type="number">
+            <template #append>%</template>
+          </el-input>
+        </el-form-item>
 
-      <el-form-item>
-        <el-button type="primary" @click="submitData">提交</el-button>
-      </el-form-item>
-    </el-form>
+        <el-form-item label="价格">
+          <el-input v-model.number="preferences.price" @input="validateInput('price')" type="number">
+            <template #append>%</template>
+          </el-input>
+        </el-form-item>
 
-    <!-- 饼图 -->
-    <v-chart :option="chartOptions" style="height: 400px;"></v-chart>
+        <el-form-item label="距离">
+          <el-input v-model.number="preferences.distance" @input="validateInput('distance')" type="number">
+            <template #append>%</template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item>
+          <el-button type="primary" @click="submitData">提交</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <!-- 右侧图表 -->
+    <div class="chart-section">
+      <v-chart :option="chartOptions" style="height: 400px;"></v-chart>
+    </div>
   </div>
 </template>
 
@@ -86,14 +102,14 @@ export default defineComponent({
   },
   methods: {
     validateInput(field) {
-    // 限制输入值在 0 到 100 之间
-    if (this.preferences[field] < 0) {
-      this.preferences[field] = 0;
-    } else if (this.preferences[field] > 100) {
-      this.preferences[field] = 100;
-    }
-    this.updateChart(); // 更新图表数据
-  },
+      // 限制输入值在 0 到 100 之间
+      if (this.preferences[field] < 0) {
+        this.preferences[field] = 0;
+      } else if (this.preferences[field] > 100) {
+        this.preferences[field] = 100;
+      }
+      this.updateChart(); // 更新图表数据
+    },
     fetchUserData(id) {
       axios.get(`http://127.0.0.1:8080/api/users/${id}`, {
         timeout: 5000 // 设置超时时间为 5 秒
@@ -145,5 +161,18 @@ export default defineComponent({
 </script>
 
 <style scoped>
-/* 自定义样式 */
+.container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.form-section {
+  flex: 1;
+  margin-right: 20px; /* 让表单和图表之间有些间距 */
+}
+
+.chart-section {
+  flex: 1;
+}
 </style>
