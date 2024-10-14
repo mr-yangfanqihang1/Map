@@ -13,6 +13,10 @@ public class UserService {
     public void createUser(User user) {
         userMapper.insertUser(user);
     }
+    public void updateUser(User user) {
+        userMapper.updateUser(user);
+        System.out.println("Updated user: " + user);
+    }
 
     public User getUserById(int id) {
         return userMapper.getUserById(id);

@@ -7,42 +7,71 @@
       <el-form-item label="用户名">
         <el-input v-model="user.username"></el-input>
       </el-form-item>
-      <el-form-item label="Preferences">
-        <el-input v-model="user.preferences" @input="updateChart"></el-input>
+      <el-form-item label="时间">
+        <el-input v-model.number="preferences.time" @input="validateInput('time')" type="number"></el-input>
+      </el-form-item>
+      <el-form-item label="价格">
+        <el-input v-model.number="preferences.price" @input="validateInput('price')" type="number"></el-input>
+      </el-form-item>
+      <el-form-item label="距离">
+        <el-input v-model.number="preferences.distance" @input="validateInput('distance')" type="number"></el-input>
+      </el-form-item>
+
+      <el-form-item>
+        <el-button type="primary" @click="submitData">提交</el-button>
       </el-form-item>
     </el-form>
-    <v-chart :options="chartOptions" ref="chart" style="width: 500px; height: 400px;"></v-chart>
+
+    <!-- 饼图 -->
+    <v-chart :option="chartOptions" style="height: 400px;"></v-chart>
   </div>
 </template>
 
 <script>
-import axios from 'axios';
 import { defineComponent } from 'vue';
-import VChart from 'vue-echarts'; // 导入 vue-echarts 组件
-import 'echarts/lib/chart/pie'; // 导入饼图类型
-import 'echarts/lib/component/tooltip'; // 导入 tooltip 组件
+import { use } from 'echarts/core';
+import ECharts from 'vue-echarts';
+import { CanvasRenderer } from 'echarts/renderers';
+import { PieChart } from 'echarts/charts';
+import { TitleComponent, TooltipComponent, LegendComponent } from 'echarts/components';
+import axios from 'axios';
+
+// 注册必须的组件
+use([CanvasRenderer, PieChart, TitleComponent, TooltipComponent, LegendComponent]);
 
 export default defineComponent({
   components: {
-    VChart // 注册 VChart 组件
+    'v-chart': ECharts
   },
   data() {
     return {
       user: {
         id: '',
         username: '',
-        preferences: '{}',
+        preferences: '' // Will store JSON string after submission
+      },
+      preferences: {
+        time: 0,      // 替换为 'time'
+        price: 0,     // 替换为 'price'
+        distance: 0   // 替换为 'distance'
       },
       chartOptions: {
+        title: {
+          text: '偏好设置',
+          left: 'center'
+        },
         tooltip: {
           trigger: 'item'
         },
+        legend: {
+          top: 'bottom'
+        },
         series: [
           {
-            name: 'Preferences',
+            name: '偏好值',
             type: 'pie',
             radius: '50%',
-            data: [],
+            data: [], // 初始数据为空
             emphasis: {
               itemStyle: {
                 shadowBlur: 10,
@@ -56,36 +85,55 @@ export default defineComponent({
     };
   },
   methods: {
+    validateInput(field) {
+    // 限制输入值在 0 到 100 之间
+    if (this.preferences[field] < 0) {
+      this.preferences[field] = 0;
+    } else if (this.preferences[field] > 100) {
+      this.preferences[field] = 100;
+    }
+    this.updateChart(); // 更新图表数据
+  },
     fetchUserData(id) {
-      axios.get(`http://127.0.0.1:8080/api/users/${id}`)
+      axios.get(`http://127.0.0.1:8080/api/users/${id}`, {
+        timeout: 5000 // 设置超时时间为 5 秒
+      })
         .then(response => {
+          console.log("Response data:", response.data);
           this.user = response.data;
+          this.preferences = JSON.parse(this.user.preferences || '{}');
           this.updateChart(); // 确保在获取数据后更新图表
         })
         .catch(error => {
           console.error('Axios error:', error);
-          if (this.$message) {
-            if (error.response) {
-              this.$message.error(`服务器响应错误: ${error.response.status}`);
-            } else if (error.request) {
-              this.$message.error('没有收到服务器响应');
-            } else {
-              this.$message.error(`请求错误: ${error.message}`);
-            }
-          } else {
-            alert('请求出错，请检查控制台日志'); // 如果$消息不存在，则使用alert作为备用
-          }
         });
     },
     updateChart() {
-      try {
-        const preferences = JSON.parse(this.user.preferences);
-        this.chartOptions.series[0].data = Object.keys(preferences).map(key => ({
-          name: key,
-          value: preferences[key]
-        }));
-      } catch (error) {
-        this.$message.error('Preferences格式错误，请输入合法的JSON字符串');
+      // 更新饼图数据，使用 'time', 'price', 'distance' 作为键名
+      const data = [
+        { name: '时间', value: this.preferences.time },
+        { name: '价格', value: this.preferences.price },
+        { name: '距离', value: this.preferences.distance }
+      ];
+      this.chartOptions.series[0].data = data;
+    },
+    submitData() {
+      const total = this.preferences.time + this.preferences.price + this.preferences.distance;
+      if (total === 100) {
+        this.user.preferences = JSON.stringify({
+          time: this.preferences.time,
+          price: this.preferences.price,
+          distance: this.preferences.distance
+        }); // 将偏好值转换为字符串格式，只包含 time, price, distance
+        axios.post('http://127.0.0.1:8080/api/users/update', this.user)
+          .then(() => {
+            alert('提交成功');
+          })
+          .catch(error => {
+            console.error('提交错误:', error);
+          });
+      } else {
+        alert('时间、价格和距离之和必须等于 100');
       }
     }
   },
@@ -97,4 +145,5 @@ export default defineComponent({
 </script>
 
 <style scoped>
+/* 自定义样式 */
 </style>

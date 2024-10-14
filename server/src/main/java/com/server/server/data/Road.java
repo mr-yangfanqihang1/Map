@@ -62,9 +62,4 @@ public class Road {
 
         return earthRadius * c; // 返回距离，单位千米
     }
-
-    // 计算价格的方法
-    private double calculatePrice(double pricePerKm) {
-        return pricePerKm * distance;
-    }
 }

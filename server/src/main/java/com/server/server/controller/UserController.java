@@ -11,11 +11,15 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @PostMapping
+    @PostMapping("/create")
     public void createUser(@RequestBody User user) {
         userService.createUser(user);
     }
-
+    @PostMapping("/update")
+    public void updateUser(@RequestBody User user) {
+        System.out.println("user update"+user);
+        userService.updateUser(user);
+    }
     @GetMapping("/{id}")
     public User getUserById(@PathVariable int id) {
         return userService.getUserById(id);
