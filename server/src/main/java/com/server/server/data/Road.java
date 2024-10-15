@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class Road {
-    private int id;           // id 主键
+    private long id;           // id 主键
     private String startName;  // 起点名称
     private String name;       // 道路名称
     private String status;     // 道路状态，enum('红','橙','绿')
@@ -44,7 +44,7 @@ public class Road {
     }
 
     // 计算距离的方法
-    private double calculateDistance() {
+    double calculateDistance() {
         double earthRadius = 6371; // 地球半径，单位千米
 
         double lat1 = Math.toRadians(startLat);

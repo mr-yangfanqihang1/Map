@@ -8,13 +8,13 @@ import java.util.List;
 public interface RoadMapper {
 
     // 插入道路数据，包括起点名称、经纬度、距离、价格等信息
-    @Insert("INSERT INTO roads (start_name, name, status, max_load, start_lat, start_long, end_lat, end_long, distance, price, next_roadid) " +
-            "VALUES (#{startName}, #{name}, #{status}, #{maxLoad}, #{startLat}, #{startLong}, #{endLat}, #{endLong}, #{distance}, #{price}, #{nextRoadId})")
+    @Insert("INSERT INTO roads (id,start_name, name, status, max_load, start_lat, start_long, end_lat, end_long, distance, price, next_roadid) " +
+            "VALUES (#{id}, #{startName}, #{name}, #{status}, #{maxLoad}, #{startLat}, #{startLong}, #{endLat}, #{endLong}, #{distance}, #{price}, #{nextRoadId})")
     void insertRoad(Road road);
 
     // 根据道路 ID 查询道路信息
     @Select("SELECT * FROM roads WHERE id = #{id}")
-    Road getRoadById(int id);
+    Road getRoadById(long id);
 
     // 查询所有道路信息
     @Select("SELECT * FROM roads")
@@ -22,17 +22,18 @@ public interface RoadMapper {
 
     // 根据道路 ID 查询道路的最大负载
     @Select("SELECT max_load FROM roads WHERE id = #{id}")
-    int getMaxLoad(int id);
-
+    int getMaxLoad(long id);
+    @Select("SELECT COUNT(*) FROM roads WHERE id = #{id}")
+    int existsById(long id);
     // 更新道路状态
     @Update("UPDATE roads SET status = #{status} WHERE id = #{id}")
-    void updateRoadStatus(int id, String status);
+    void updateRoadStatus(long id, String status);
 
     // 更新道路的价格
     @Update("UPDATE roads SET price = #{price} WHERE id = #{id}")
-    void updateRoadPrice(int id, double price);
+    void updateRoadPrice(long id, double price);
 
     // 更新下一道路 ID
     @Update("UPDATE roads SET next_roadid = #{nextRoadId} WHERE id = #{id}")
-    void updateNextRoadId(int id, String nextRoadId);
+    void updateNextRoadId(long id, String nextRoadId);
 }
