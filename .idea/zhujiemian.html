@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Map with Navigation</title>
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=1.4.15&key=73f31edb64d7baefbc909c8bac5b839f"></script>
+    <style>
+        #container {
+            width: 1750px;
+            height: 785px;
+        }
+    </style>
+</head>
+<body>
+<div id="container"></div>
+
+<script>
+    // 初始化地图
+    var map = new AMap.Map('container', {
+        resizeEnable: true,
+        zoom: 14,
+        center: [116.397428, 39.90923] // 北京天安门坐标
+    });
+
+    // 设置出发点和目的地
+    var startLngLat = [116.379028, 39.865042]; // 出发点坐标
+    var endLngLat = [116.427281, 39.903719]; // 目的地坐标
+
+    // 创建驾车导航实例
+    var driving = new AMap.Driving({
+        map: map, // 在地图上绘制导航路线
+        panel: "panel" // 如果需要显示导航信息，可以指定一个 DOM 元素
+    });
+
+    // 规划路线
+    driving.search(startLngLat, endLngLat, function(status, result) {
+        if (status === 'complete' && result.routes && result.routes.length) {
+            console.log('路线绘制成功');
+        } else {
+            console.log('路线绘制失败：' + status);
+        }
+    });
+</script>
+</body>
+</html>

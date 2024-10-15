@@ -1,6 +1,5 @@
 package com.server.server.data;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import lombok.Data;
@@ -9,13 +8,13 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class Route {
-    private int id; // 路由请求的唯一标识
     private int userId;
-    private String startPointname;
-    private String endPointname;
-    private double distance;
-    private double duration;
-    private List<RouteData> pathData;  // 处理多个路径点
+    private String startPoint;
+    private String endPoint;
+    private String distance;
+    private String duration;
+    private String price;    // 新增价格字段
+    private List<RouteData> pathData;  // 使用 RouteData 存储多个路径点
     private String timestamp;
     private int priority;             // 初始优先级
     private LocalDateTime requestTime; // 请求进入系统的时间
