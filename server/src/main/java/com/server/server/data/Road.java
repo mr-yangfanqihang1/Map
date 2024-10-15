@@ -47,7 +47,6 @@ public class Road {
         double lon1 = Math.toRadians(startLong);
         double lat2 = Math.toRadians(endLat);
         double lon2 = Math.toRadians(endLong);
-
         double dlon = lon2 - lon1;
         double dlat = lat2 - lat1;
 

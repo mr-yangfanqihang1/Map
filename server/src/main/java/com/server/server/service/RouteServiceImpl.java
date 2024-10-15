@@ -1,12 +1,8 @@
 package com.server.server.service;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Set;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,7 +21,7 @@ public class RouteServiceImpl implements RouteService {
     private RouteMapper routeMapper;
 
     @Autowired
-    private UserMapper userMapper;  // 新增 UserMapper 用于查询用户权重
+    private UserMapper userMapper;  // 用于查询用户权重
 
     private final ObjectMapper objectMapper = new ObjectMapper();  // 用于解析 JSON 的 ObjectMapper
 
@@ -41,6 +37,9 @@ public class RouteServiceImpl implements RouteService {
 
     @Override
     public Route calculateRoute(Route route) {
+        // 调整动态优先级
+        adjustDynamicPriority(route);
+
         // 从数据库获取用户信息及其权重
         User user = userMapper.getUserById(route.getUserId());
         if (user == null || user.getPreferences() == null) {
@@ -52,6 +51,19 @@ public class RouteServiceImpl implements RouteService {
 
         // 使用用户权重执行 A* 算法
         return aStarSearch(route, weights);
+    }
+
+    // 动态调整优先级，基于请求时间和初始优先级
+    private void adjustDynamicPriority(Route route) {
+        LocalDateTime now = LocalDateTime.now();
+        // 计算请求已等待的时间（分钟）
+        long waitingTime = Duration.between(route.getRequestTime(), now).toMinutes();
+
+        // 动态增加优先级：每等待10分钟，增加1点优先级
+        int additionalPriority = (int) (waitingTime / 10);
+
+        // 动态优先级 = 初始优先级 + 额外增加的优先级
+        route.setDynamicPriority(route.getPriority() + additionalPriority);
     }
 
     // 从 JSON 字符串解析用户的权重
@@ -67,7 +79,7 @@ public class RouteServiceImpl implements RouteService {
     // A* 搜索算法
     private Route aStarSearch(Route route, Map<String, Double> weights) {
         List<RouteData> pathData = route.getPathData();
-        
+
         // 计算路径中 distance, duration, price 的最大值和最小值，用于归一化
         double maxDistance = pathData.stream().mapToDouble(RouteData::getDistance).max().orElse(1);
         double minDistance = pathData.stream().mapToDouble(RouteData::getDistance).min().orElse(0);
