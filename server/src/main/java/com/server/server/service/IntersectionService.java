@@ -1,18 +1,9 @@
 package com.server.server.service;
-
-import com.server.server.data.*;
-import com.server.server.mapper.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
 import java.util.*;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+
 @Service
-
-
-
 interface ResourceManager {
     void printState();
 }
@@ -61,6 +52,7 @@ class Philosopher extends SimulationThread {
     }
 }
 
+@Service
 public class IntersectionService {
     private final ResourceManager resourceManager;
     private final List<Vehicle> vehicles = new ArrayList<>();
