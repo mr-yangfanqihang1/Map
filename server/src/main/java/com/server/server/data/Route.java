@@ -13,10 +13,12 @@ public class Route {
     private String endPoint;
     private String distance;
     private String duration;
-    private List<PathData> pathData;  // 处理多个路径点
-    private List<RouteData> RouteData;
+    private String price;    // 新增价格字段
+    private List<RouteData> pathData;  // 使用 RouteData 存储多个路径点
     private String timestamp;
-    private double weightDistance;  // 前端传来的距离权重
-    private double weightDuration;  // 前端传来的时间权重
-    private double price;  // 前端传来的时间权重
+
+    // 权重字段
+    private double weightDistance;  // 距离权重
+    private double weightDuration;  // 时间权重
+    private double weightPrice;     // 价格权重
 }
