@@ -6,30 +6,25 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class Road {
-    private String startPoint;
-    private String endPoint;
+   
     private double startLat;
     private double startLong;
     private double endLat;
     private double endLong;
     private double distance;
-    private double duration;
     private double price;
     private String name;
     private String status;
     private int maxLoad;
-
+    private String NextroadId;
     // 带经纬度的构造函数
     public Road(String startPoint, String endPoint, double startLat, double startLong, 
                 double endLat, double endLong, double duration, double pricePerKm,
                 String name, String status, int maxLoad) {
-        this.startPoint = startPoint;
-        this.endPoint = endPoint;
         this.startLat = startLat;
         this.startLong = startLong;
         this.endLat = endLat;
         this.endLong = endLong;
-        this.duration = duration;
         this.distance = calculateDistance(); // 直接调用方法计算距离
 
         // 如果价格不为 0，则根据距离计算价格
