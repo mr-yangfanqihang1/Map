@@ -6,37 +6,41 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class Road {
-   
-    private double startLat;
-    private double startLong;
-    private double endLat;
-    private double endLong;
-    private double distance;
-    private double price;
-    private String name;
-    private String status;
-    private int maxLoad;
-    private String NextroadId;
+    private int id;           // id 主键
+    private String startName;  // 起点名称
+    private String name;       // 道路名称
+    private String status;     // 道路状态，enum('红','橙','绿')
+    private int maxLoad;       // 最大载重
+    private double startLat;   // 起点纬度
+    private double startLong;  // 起点经度
+    private double endLat;     // 终点纬度
+    private double endLong;    // 终点经度
+    private double distance;   // 距离
+    private double price;      // 价格
+    private String nextRoadId; // 下一道路ID
+
     // 带经纬度的构造函数
-    public Road(String startPoint, String endPoint, double startLat, double startLong, 
-                double endLat, double endLong, double duration, double pricePerKm,
-                String name, String status, int maxLoad) {
+    public Road(String startName, String name, double startLat, double startLong, 
+                double endLat, double endLong, double pricePerKm, 
+                String status, int maxLoad, String nextRoadId) {
+        this.startName = startName;
+        this.name = name;
         this.startLat = startLat;
         this.startLong = startLong;
         this.endLat = endLat;
         this.endLong = endLong;
-        this.distance = calculateDistance(); // 直接调用方法计算距离
+        this.distance = calculateDistance(); // 计算距离
 
         // 如果价格不为 0，则根据距离计算价格
-        if (Math.abs(price - 0.0) > 1e-10) {
+        if (Math.abs(pricePerKm - 0.0) > 1e-10) {
             this.price = pricePerKm * this.distance;
         } else {
             this.price = 0;
         }
 
-        this.name = name;
         this.status = status;
         this.maxLoad = maxLoad;
+        this.nextRoadId = nextRoadId;
     }
 
     // 计算距离的方法
