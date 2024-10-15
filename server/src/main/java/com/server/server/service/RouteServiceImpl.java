@@ -60,10 +60,10 @@ public class RouteServiceImpl implements RouteService {
         long waitingTime = Duration.between(route.getRequestTime(), now).toMinutes();
 
         // 动态增加优先级：每等待10分钟，增加1点优先级
-        int additionalPriority = (int) (waitingTime / 10);
+        int additionalPriority = (int) (waitingTime / 0.5);
 
         // 动态优先级 = 初始优先级 + 额外增加的优先级
-        route.setDynamicPriority(route.getPriority() + additionalPriority);
+        route.setPriority(route.getPriority() + additionalPriority);
     }
 
     // 从 JSON 字符串解析用户的权重
