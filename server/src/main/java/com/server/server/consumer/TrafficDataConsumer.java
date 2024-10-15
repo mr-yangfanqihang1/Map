@@ -1,12 +1,17 @@
 package com.server.server.consumer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.ibatis.exceptions.PersistenceException;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
 import com.server.server.data.*;
 import com.server.server.mapper.RoadMapper;
 import com.server.server.mapper.TrafficDataMapper;
@@ -20,12 +25,24 @@ public class TrafficDataConsumer implements Runnable {
     List<TrafficData> updateBatch = new ArrayList<>();
     private static final int BATCH_SIZE = 8; // 定义批量操作的大小
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
-    
-    public TrafficDataConsumer(PriorityBlockingQueue<TrafficDataRequest> queue, TrafficDataMapper trafficDataMapper,RoadMapper roadMapper, ConcurrentHashMap<Integer, List<TrafficData>> queryResults) {
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final ValueOperations<String, Object> valueOps;
+    public TrafficDataConsumer(
+        PriorityBlockingQueue<TrafficDataRequest> queue,
+        TrafficDataMapper trafficDataMapper,
+        RoadMapper roadMapper,
+        ConcurrentHashMap<Integer, List<TrafficData>> queryResults,
+        RedisTemplate<String, Object> redisTemplate
+    ) {
         this.queue = queue;
         this.trafficDataMapper = trafficDataMapper;
         this.queryResults = queryResults;
         this.roadMapper=roadMapper;
+        this.redisTemplate = redisTemplate;
+        this.valueOps = redisTemplate.opsForValue();
+        redisTemplate.setKeySerializer(new StringRedisSerializer());
+        redisTemplate.setValueSerializer(new StringRedisSerializer());
+
     }
 
     @Override
@@ -54,7 +71,14 @@ public class TrafficDataConsumer implements Runnable {
                 System.err.println("Error updating road statuses: " + e.getMessage());
             }
         }, 0, 30, TimeUnit.SECONDS);
-
+        //持久化，每分钟一次
+        scheduler.scheduleAtFixedRate(() -> {
+            try {
+                updateRoadStatusesFromRedis();
+            } catch (Exception e) {
+                System.err.println("Error updating road statuses from Redis: " + e.getMessage());
+            }
+        }, 0, 60, TimeUnit.SECONDS);
         // 主线程持续处理队列中的请求
         while (true) {
             try {
@@ -119,17 +143,14 @@ public class TrafficDataConsumer implements Runnable {
 
     private void checkAndUpdateAllRoadStatuses() {
         long startTime = System.currentTimeMillis();
-    
-        // 查询数据库，获取每个 roadId 及其用户数量、最大负载、当前状态
         List<RoadTrafficData> roadTrafficDataList = trafficDataMapper.getUserCountAndMaxLoadForAllRoads();
-        // 遍历查询结果，进行状态检查和更新
+    
         for (RoadTrafficData data : roadTrafficDataList) {
             int roadId = data.getRoadId();
             int userCount = data.getUserCount();
             int maxLoad = data.getMaxLoad();
             String status = data.getStatus();
     
-            // 根据用户总量与 maxLoad 的比率设置道路状态
             String newStatus;
             if (userCount <= maxLoad) {
                 newStatus = "绿";
@@ -139,16 +160,43 @@ public class TrafficDataConsumer implements Runnable {
                 newStatus = "红";
             }
     
-            // 如果状态有变化，更新数据库中的道路状态
             if (!newStatus.equals(status)) {
-                roadMapper.updateRoadStatus(roadId, newStatus);
-                System.out.println("Updated road status for roadId " + roadId + ": " + newStatus);
+                // 仅更新 Redis 缓存
+                valueOps.set("roadStatus:roadId:" + roadId, newStatus); 
+                System.out.println("Cached road status for roadId " + roadId + ": " + newStatus);
             }
         }
     
         long endTime = System.currentTimeMillis();
         System.out.println("update road time: " + (endTime - startTime) + " ms");
     }
+    // 从 Redis 中读取缓存的状态信息，并批量更新到数据库
+    // 从 Redis 中读取缓存的状态信息，并批量更新到数据库
+    private void updateRoadStatusesFromRedis() {
+        long startTime = System.currentTimeMillis();
+        Set<String> roadKeysSet = redisTemplate.keys("roadStatus:roadId:*");
+
+        if (roadKeysSet != null && !roadKeysSet.isEmpty()) {
+            List<String> roadKeys = new ArrayList<>(roadKeysSet); // 将 Set 转换为 List
+
+            for (String key : roadKeys) {
+                String roadIdStr = key.split(":")[2];
+                int roadId = Integer.parseInt(roadIdStr);
+                String newStatus = (String) valueOps.get(key);
+
+                // 调用数据库更新方法
+                roadMapper.updateRoadStatus(roadId, newStatus);
+
+                // 删除已更新的 Redis 缓存
+                redisTemplate.delete(key);
+                System.out.println("Updated database for roadId " + roadId + " with status: " + newStatus);
+            }
+        }
+        long endTime = System.currentTimeMillis();
+        System.out.println("batch update road status time: " + (endTime - startTime) + " ms");
+    }
+
+    
     
     
     
