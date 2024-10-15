@@ -1,7 +1,6 @@
 package com.server.server.data;
-
 import java.util.List;
-
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -21,15 +20,6 @@ public class Route {
     private int distanceWeight;    // 用户偏好权重：距离
     private int durationWeight;    // 用户偏好权重：时间
     private int priceWeight;       // 用户偏好权重：价格
-    
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
     public int getUserId() {
         return userId;
     }

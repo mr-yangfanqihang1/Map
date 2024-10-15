@@ -29,7 +29,7 @@ public class RouteController {
         }
 
         // 设置请求时间和初始优先级
-        route.(LocalDateTime.now());
+        route.setRequestTime(LocalDateTime.now());
         route.setPriority(route.getPriority());  // 假设用户有一个初始优先级
 
         // 调用 RouteService 计算路径
