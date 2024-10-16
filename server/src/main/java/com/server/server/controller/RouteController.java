@@ -34,6 +34,7 @@ public class RouteController {
     public Route calculateRoute(@RequestBody Route route) {
         // 在接收到前端数据时打印 Route 信息
         logger.info("Received route data: " + route.toString());
+        System.out.println("Received route data: " + route.toString());
 
         // 获取用户ID并查找用户信息
         User user = userService.getUserById(route.getUserId());
