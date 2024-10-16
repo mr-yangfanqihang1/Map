@@ -1,24 +1,61 @@
 <template>
   <div id="map-container">
     <div id="container"></div>
+
+    <!-- 现有道路状态和路线管理部分 -->
     <div class="road-status">
       <input v-model="roadId" placeholder="Enter road ID" />
       <button @click="getRoadStatus">Get Road Status</button>
       <p v-if="roadStatus">Road Status: {{ roadStatus }}</p>
-      <p v-if="error">{{ error }}</p>
+      <p v-if="error" class="error">{{ error }}</p>
     </div>
 
     <div class="route-management">
-      <h3>Create Route</h3>
-      <form @submit.prevent="createRoute">
-        <input v-model="route.userId" placeholder="User ID" required />
-        <input v-model="route.startLocation" placeholder="Startpoint" required />
-        <input v-model="route.endLocation" placeholder="Endpoint" required />
-        <input v-model="route.priority" type="number" placeholder="Priority" required />
-        <button type="submit">Create Route</button>
+      <h3>Calculate Route</h3>
+      <form @submit.prevent="calculateRoute">
+        <input
+            v-model="calculateInput.userId"
+            placeholder="User ID"
+            required
+        />
+
+        <!-- 起点模糊搜索 -->
+        <input
+            v-model="calculateInput.startLocation"
+            placeholder="Startpoint"
+            @input="debouncedSearchItems('start')"
+            required
+        />
+        <ul v-if="startResults.length && calculateInput.startLocation" class="search-results">
+          <li v-for="item in startResults" :key="item.id" @click="selectItem('start', item)">
+            {{ item.name }}
+          </li>
+        </ul>
+
+        <!-- 终点模糊搜索 -->
+        <input
+            v-model="calculateInput.endLocation"
+            placeholder="Endpoint"
+            @input="debouncedSearchItems('end')"
+            required
+        />
+        <ul v-if="endResults.length && calculateInput.endLocation" class="search-results">
+          <li v-for="item in endResults" :key="item.id" @click="selectItem('end', item)">
+            {{ item.name }}
+          </li>
+        </ul>
+
+        <input
+            v-model="calculateInput.priority"
+            type="number"
+            placeholder="Priority"
+            required
+        />
+
+        <button type="submit">Calculate Route</button>
       </form>
-      <p v-if="createdRoute">Route created: {{ createdRoute }}</p>
-      <p v-if="createError">{{ createError }}</p>
+      <p v-if="calculatedRoute">Calculated Route: {{ calculatedRoute }}</p>
+      <p v-if="calcError" class="error">{{ calcError }}</p>
     </div>
   </div>
 </template>
@@ -32,69 +69,161 @@ export default {
   name: 'MapWithNavigation',
   data() {
     return {
-      roadId: '',          // 存储输入的道路ID
-      roadStatus: '',      // 显示的道路状态
-      error: '',           // 存储错误信息
-      route: {            // 存储创建路线所需的信息
+      roadId: '',
+      roadStatus: '',
+      error: '',
+      calculateInput: {
         userId: '',
         startLocation: '',
         endLocation: '',
         priority: 0,
+        startLngLat: null,
+        endLngLat: null,
       },
-      createdRoute: '',    // 显示创建的路线
-      createError: '',     // 存储创建路线时的错误信息
+      calculatedRoute: '',
+      calcError: '',
+      map: null,
+      polyline: null,
+      startResults: [], // 起点模糊搜索结果
+      endResults: [], // 终点模糊搜索结果
+      loading: false,
     };
   },
   mounted() {
     this.initMap();
+    this.debouncedSearchItems = this.debounce(this.searchItems, 300); // 300ms 防抖
   },
   methods: {
     initMap() {
       const script = document.createElement('script');
       script.src = 'https://webapi.amap.com/maps?v=1.4.15&key=73f31edb64d7baefbc909c8bac5b839f';
-      script.onload = this.initializeMap;
+      script.onload = () => {
+        this.initializeMap();
+      };
       document.head.appendChild(script);
     },
     initializeMap() {
-      this.map = new AMap.Map('container', {
-        resizeEnable: true,
-        zoom: 14,
-        center: [116.397428, 39.90923], // 天安门，北京的坐标
-      });
+      if (window.AMap) {
+        this.map = new AMap.Map('container', {
+          resizeEnable: true,
+          zoom: 14,
+          center: [116.397428, 39.90923],
+        });
+      } else {
+        console.error('AMap is not defined');
+      }
     },
-    // 调用后端API获取道路状态
     getRoadStatus() {
       if (!this.roadId || isNaN(this.roadId)) {
         this.error = 'Please enter a valid road ID';
         return;
       }
-      this.error = '';  // 重置错误状态
-      this.roadStatus = '';  // 重置道路状态
+      this.error = '';
+      this.roadStatus = '';
 
-      // 发送API请求获取道路状态
       axios.get(`http://localhost:8080/api/roads/status/${this.roadId}`)
           .then(response => {
-            this.roadStatus = response.data; // 更新道路状态
+            this.roadStatus = response.data.status;
           })
           .catch(error => {
-            console.error('Error fetching road status:', error);
+            console.error('Error fetching road status:', error.response ? error.response.data : error);
             this.error = 'Failed to fetch road status. Please try again.';
           });
     },
-    // 创建新路线
-    createRoute() {
-      this.createError = ''; // 重置错误信息
-      this.createdRoute = ''; // 重置创建的路线信息
+    calculateRoute() {
+      this.calcError = '';
+      this.calculatedRoute = '';
 
-      // 发送请求创建新路线=
-      axios.post('http://localhost:8080/api/routes/create', this.route)
+      Promise.all([
+        this.getCoordinates(this.calculateInput.startLocation),
+        this.getCoordinates(this.calculateInput.endLocation)
+      ])
+          .then(([startLngLat, endLngLat]) => {
+            this.calculateInput.startLngLat = startLngLat;
+            this.calculateInput.endLngLat = endLngLat;
+
+            return axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput);
+          })
           .then(response => {
-            this.createdRoute = response.data ? response.data.message : 'Route created successfully!'; // 使用response
+            this.calculatedRoute = response.data;
+            this.drawRoute(this.calculateInput.startLngLat, this.calculateInput.endLngLat);
+            this.calculateInput = { userId: '', startLocation: '', endLocation: '', priority: 0 };
           })
           .catch(error => {
-            console.error('Error creating route:', error);
-            this.createError = 'Failed to create route. Please try again.';
+            console.error('Error calculating route:', error.response ? error.response.data : error);
+            this.calcError = 'Failed to calculate route. Please try again.';
           });
+    },
+    searchItems(inputType) {
+      this.loading = true;
+      const query = inputType === 'start' ? this.calculateInput.startLocation : this.calculateInput.endLocation;
+
+      if (!query) {
+        if (inputType === 'start') {
+          this.startResults = [];
+        } else {
+          this.endResults = [];
+        }
+        this.loading = false;
+        return;
+      }
+
+      // 发送模糊搜索请求
+      axios.get(`http://localhost:8081/api/search?query=${query}`)
+          .then(response => {
+            if (inputType === 'start') {
+              this.startResults = response.data;
+            } else {
+              this.endResults = response.data;
+            }
+          })
+          .catch(error => {
+            console.error('Error during search:', error);
+          })
+          .finally(() => {
+            this.loading = false;
+          });
+    },
+    selectItem(inputType, item) {
+      if (inputType === 'start') {
+        this.calculateInput.startLocation = item.name;
+        this.startResults = [];
+      } else {
+        this.calculateInput.endLocation = item.name;
+        this.endResults = [];
+      }
+    },
+    getCoordinates(location) {
+      return new Promise((resolve, reject) => {
+        const geocoder = new AMap.Geocoder({
+          city: "010", // Optional: Specify a city for more accurate results
+        });
+        geocoder.getLocation(location, (status, result) => {
+          if (status === 'complete' && result.info === 'OK') {
+            const lnglat = result.geocodes[0].location;
+            resolve([lnglat.lng, lnglat.lat]);
+          } else {
+            reject(new Error("Failed to get coordinates"));
+          }
+        });
+      });
+    },
+    drawRoute(startLngLat, endLngLat) {
+      this.polyline = new AMap.Polyline({
+        path: [startLngLat, endLngLat],
+        borderWeight: 8,
+        strokeColor: '#0058D4',
+        strokeOpacity: 1,
+      });
+      this.polyline.setMap(this.map);
+    },
+    debounce(func, delay) {
+      let timeout;
+      return function (...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), delay);
+      };
     },
   },
 };
@@ -132,5 +261,27 @@ button:hover {
 
 .error {
   color: red;
+  font-weight: bold;
+}
+
+/* 搜索结果样式 */
+.search-results {
+  position: absolute;
+  z-index: 1000;
+  border: 1px solid #ccc;
+  background-color: white;
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+.search-results li {
+  padding: 10px;
+  cursor: pointer;
+}
+
+.search-results li:hover {
+  background-color: #f0f0f0;
 }
 </style>
