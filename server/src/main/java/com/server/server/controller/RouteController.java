@@ -1,13 +1,21 @@
 package com.server.server.controller;
 
+import java.time.LocalDateTime;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.server.server.data.Route;
 import com.server.server.data.User;
 import com.server.server.service.RouteService;
 import com.server.server.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/routes")
@@ -19,8 +27,14 @@ public class RouteController {
     @Autowired
     private UserService userService;  // 用于获取用户信息
 
+    // 添加日志记录器
+    private static final Logger logger = LoggerFactory.getLogger(RouteController.class);
+
     @PostMapping("/calculate")
     public Route calculateRoute(@RequestBody Route route) {
+        // 在接收到前端数据时打印 Route 信息
+        logger.info("Received route data: " + route.toString());
+
         // 获取用户ID并查找用户信息
         User user = userService.getUserById(route.getUserId());
 
@@ -43,6 +57,9 @@ public class RouteController {
 
     @PostMapping("/create")
     public void createRoute(@RequestBody Route route) {
+        // 打印收到的创建路径的数据
+        logger.info("Creating route with data: " + route.toString());
+
         routeService.createRoute(route);
     }
 }
