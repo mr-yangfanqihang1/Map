@@ -2,7 +2,13 @@ package com.server.server.service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -158,6 +164,13 @@ public class RouteServiceImpl implements RouteService {
             node = node.getParent();
         }
         route.setPathData(path);
+        System.out.println("寻路成功！路径如下：");
+    for (RouteData routeData : path) {
+        System.out.println("路段：起点 (" + routeData.getStartLat() + ", " + routeData.getStartLong() + 
+                           ") -> 终点 (" + routeData.getEndLat() + ", " + routeData.getEndLong() + 
+                           "), 距离：" + routeData.getDistance() + " km, 时间：" + routeData.getDuration() + 
+                           " 分钟, 价格：" + routeData.getPrice() + " 元");
+    }
         return route;
     }
 
