@@ -134,25 +134,52 @@ export default {
       this.calcError = '';
       this.calculatedRoute = '';
 
-      Promise.all([
-        this.getCoordinates(this.calculateInput.startId),
-        this.getCoordinates(this.calculateInput.endId)
-      ])
-        .then(([startLngLat, endLngLat]) => {
-          this.calculateInput.startLngLat = startLngLat;
-          this.calculateInput.endLngLat = endLngLat;
-
-          return axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput);
-        })
+      // 调用后端计算路线并绘制路径
+      axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput)
         .then(response => {
           this.calculatedRoute = response.data;
-          this.drawRoute(this.calculateInput.startLngLat, this.calculateInput.endLngLat);
+
+          // 如果后端返回了路径数据，则绘制路线
+          if (response.data.pathData) {
+            this.drawRoute(response.data.pathData);  // 使用 pathData 绘制路线
+          }
+
           this.calculateInput = { userId: '', startId: '', endId: '', priority: 0 };
         })
         .catch(error => {
           console.error('Error calculating route:', error.response ? error.response.data : error);
           this.calcError = 'Failed to calculate route. Please try again.';
         });
+    },
+    drawRoute(pathData) {
+      if (this.polyline) {
+        this.polyline.setMap(null);  // 如果之前绘制过路线，清除它
+      }
+
+      // 构建路径点数组
+      const routePath = pathData.flatMap((segment) => {
+        return [
+          [segment.startLong, segment.startLat],  // 起点
+          [segment.endLong, segment.endLat]  // 终点
+        ];
+      });
+
+      // 创建新的 Polyline
+      this.polyline = new AMap.Polyline({
+        path: routePath,
+        borderWeight: 6,
+        strokeColor: '#33A1C9',
+        strokeOpacity: 0.8,
+        strokeWeight: 5,
+        lineJoin: 'round',
+        strokeStyle: 'solid',
+      });
+
+      // 设置路线显示在地图上
+      this.polyline.setMap(this.map);
+
+      // 自动缩放地图以适应路线
+      this.map.setFitView([this.polyline]);
     },
     searchItems(inputType) {
       this.loading = true;
@@ -192,32 +219,6 @@ export default {
         this.calculateInput.endId = item.name;
         this.endResults = [];
       }
-    },
-    getCoordinates(location) {
-  return new Promise((resolve, reject) => {
-    AMap.plugin('AMap.Geocoder', () => {
-      const geocoder = new AMap.Geocoder({
-        city: "010", // Optional: Specify a city for more accurate results
-      });
-      geocoder.getLocation(location, (status, result) => {
-        if (status === 'complete' && result.info === 'OK') {
-          const lnglat = result.geocodes[0].location;
-          resolve([lnglat.lng, lnglat.lat]);
-        } else {
-          reject(new Error("Failed to get coordinates"));
-        }
-      });
-    });
-  });
-},
-    drawRoute(startLngLat, endLngLat) {
-      this.polyline = new AMap.Polyline({
-        path: [startLngLat, endLngLat],
-        borderWeight: 8,
-        strokeColor: '#0058D4',
-        strokeOpacity: 1,
-      });
-      this.polyline.setMap(this.map);
     },
     debounce(func, delay) {
       let timeout;
