@@ -21,12 +21,12 @@
 
         <!-- 起点模糊搜索 -->
         <input
-            v-model="calculateInput.startLocation"
+            v-model="calculateInput.startId"
             placeholder="Startpoint"
             @input="debouncedSearchItems('start')"
             required
         />
-        <ul v-if="startResults.length && calculateInput.startLocation" class="search-results">
+        <ul v-if="startResults.length && calculateInput.startId" class="search-results">
           <li v-for="item in startResults" :key="item.id" @click="selectItem('start', item)">
             {{ item.name }}
           </li>
@@ -34,12 +34,12 @@
 
         <!-- 终点模糊搜索 -->
         <input
-            v-model="calculateInput.endLocation"
+            v-model="calculateInput.endId"
             placeholder="Endpoint"
             @input="debouncedSearchItems('end')"
             required
         />
-        <ul v-if="endResults.length && calculateInput.endLocation" class="search-results">
+        <ul v-if="endResults.length && calculateInput.endId" class="search-results">
           <li v-for="item in endResults" :key="item.id" @click="selectItem('end', item)">
             {{ item.name }}
           </li>
@@ -74,8 +74,8 @@ export default {
       error: '',
       calculateInput: {
         userId: '',
-        startLocation: '',
-        endLocation: '',
+        startId: '',
+        endId: '',
         priority: 0,
         startLngLat: null,
         endLngLat: null,
@@ -122,41 +122,41 @@ export default {
       this.roadStatus = '';
 
       axios.get(`http://localhost:8080/api/roads/status/${this.roadId}`)
-          .then(response => {
-            this.roadStatus = response.data.status;
-          })
-          .catch(error => {
-            console.error('Error fetching road status:', error.response ? error.response.data : error);
-            this.error = 'Failed to fetch road status. Please try again.';
-          });
+        .then(response => {
+          this.roadStatus = response.data.status;
+        })
+        .catch(error => {
+          console.error('Error fetching road status:', error.response ? error.response.data : error);
+          this.error = 'Failed to fetch road status. Please try again.';
+        });
     },
     calculateRoute() {
       this.calcError = '';
       this.calculatedRoute = '';
 
       Promise.all([
-        this.getCoordinates(this.calculateInput.startLocation),
-        this.getCoordinates(this.calculateInput.endLocation)
+        this.getCoordinates(this.calculateInput.startId),
+        this.getCoordinates(this.calculateInput.endId)
       ])
-          .then(([startLngLat, endLngLat]) => {
-            this.calculateInput.startLngLat = startLngLat;
-            this.calculateInput.endLngLat = endLngLat;
+        .then(([startLngLat, endLngLat]) => {
+          this.calculateInput.startLngLat = startLngLat;
+          this.calculateInput.endLngLat = endLngLat;
 
-            return axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput);
-          })
-          .then(response => {
-            this.calculatedRoute = response.data;
-            this.drawRoute(this.calculateInput.startLngLat, this.calculateInput.endLngLat);
-            this.calculateInput = { userId: '', startLocation: '', endLocation: '', priority: 0 };
-          })
-          .catch(error => {
-            console.error('Error calculating route:', error.response ? error.response.data : error);
-            this.calcError = 'Failed to calculate route. Please try again.';
-          });
+          return axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput);
+        })
+        .then(response => {
+          this.calculatedRoute = response.data;
+          this.drawRoute(this.calculateInput.startLngLat, this.calculateInput.endLngLat);
+          this.calculateInput = { userId: '', startId: '', endId: '', priority: 0 };
+        })
+        .catch(error => {
+          console.error('Error calculating route:', error.response ? error.response.data : error);
+          this.calcError = 'Failed to calculate route. Please try again.';
+        });
     },
     searchItems(inputType) {
       this.loading = true;
-      const query = inputType === 'start' ? this.calculateInput.startLocation : this.calculateInput.endLocation;
+      const query = inputType === 'start' ? this.calculateInput.startId : this.calculateInput.endId;
 
       if (!query) {
         if (inputType === 'start') {
@@ -169,7 +169,7 @@ export default {
       }
 
       // 发送模糊搜索请求
-      axios.get(`http://localhost:8081/api/search?query=${query}`)
+      axios.get(`http://localhost:8080/api/search?query=${query}`)
           .then(response => {
             if (inputType === 'start') {
               this.startResults = response.data;
@@ -186,28 +186,30 @@ export default {
     },
     selectItem(inputType, item) {
       if (inputType === 'start') {
-        this.calculateInput.startLocation = item.name;
+        this.calculateInput.startId = item.name;
         this.startResults = [];
       } else {
-        this.calculateInput.endLocation = item.name;
+        this.calculateInput.endId = item.name;
         this.endResults = [];
       }
     },
     getCoordinates(location) {
-      return new Promise((resolve, reject) => {
-        const geocoder = new AMap.Geocoder({
-          city: "010", // Optional: Specify a city for more accurate results
-        });
-        geocoder.getLocation(location, (status, result) => {
-          if (status === 'complete' && result.info === 'OK') {
-            const lnglat = result.geocodes[0].location;
-            resolve([lnglat.lng, lnglat.lat]);
-          } else {
-            reject(new Error("Failed to get coordinates"));
-          }
-        });
+  return new Promise((resolve, reject) => {
+    AMap.plugin('AMap.Geocoder', () => {
+      const geocoder = new AMap.Geocoder({
+        city: "010", // Optional: Specify a city for more accurate results
       });
-    },
+      geocoder.getLocation(location, (status, result) => {
+        if (status === 'complete' && result.info === 'OK') {
+          const lnglat = result.geocodes[0].location;
+          resolve([lnglat.lng, lnglat.lat]);
+        } else {
+          reject(new Error("Failed to get coordinates"));
+        }
+      });
+    });
+  });
+},
     drawRoute(startLngLat, endLngLat) {
       this.polyline = new AMap.Polyline({
         path: [startLngLat, endLngLat],
