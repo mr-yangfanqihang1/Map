@@ -15,6 +15,7 @@ public class TrafficDataController {
         trafficDataService.uploadTrafficData(trafficData);
     }
 
+
     @PostMapping("/update")
     public void updateTrafficData(@RequestBody TrafficData trafficData) {
         trafficDataService.updateTrafficData(trafficData);
