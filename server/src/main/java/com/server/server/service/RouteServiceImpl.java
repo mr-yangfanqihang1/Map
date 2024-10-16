@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.server.server.data.Road;
 import com.server.server.data.Route;
 import com.server.server.data.RouteData;
 import com.server.server.data.User;
@@ -27,9 +28,9 @@ public class RouteServiceImpl implements RouteService {
     private RouteMapper routeMapper;
 
     @Autowired
-    private UserMapper userMapper;  // 用于查询用户权重
+    private UserMapper userMapper;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();  // 用于解析 JSON 的 ObjectMapper
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public void createRoute(Route route) {
@@ -55,156 +56,136 @@ public class RouteServiceImpl implements RouteService {
         // 解析 preferences JSON 字段，获取权重
         Map<String, Double> weights = getUserWeights(user.getPreferences());
 
+        // 从数据库获取起始和结束 Road
+        Road startRoad = routeMapper.getRoadById(route.getStartId());
+        Road endRoad = routeMapper.getRoadById(route.getEndId());
+
         // 使用用户权重执行 A* 算法
-        return aStarSearch(route, weights);
+        return aStarSearch(startRoad, endRoad, weights);
     }
 
-    // 动态调整优先级，基于请求时间和初始优先级
     private void adjustDynamicPriority(Route route) {
         LocalDateTime now = LocalDateTime.now();
-        // 计算请求已等待的时间（分钟）
         long waitingTime = Duration.between(route.getRequestTime(), now).toMinutes();
-
-        // 动态增加优先级：每等待10分钟，增加1点优先级
         int additionalPriority = (int) (waitingTime / 0.5);
-
-        // 动态优先级 = 初始优先级 + 额外增加的优先级
         route.setPriority(route.getPriority() + additionalPriority);
     }
 
-    // 从 JSON 字符串解析用户的权重
     private Map<String, Double> getUserWeights(String preferencesJson) {
         try {
-            // 使用 ObjectMapper 将 JSON 字符串转换为 Map<String, Double>
-            return objectMapper.readValue(preferencesJson, Map.class);  // 解析成 Map<String, Double>
+            return objectMapper.readValue(preferencesJson, Map.class);
         } catch (Exception e) {
             throw new RuntimeException("解析用户权重失败", e);
         }
     }
 
-    // A* 搜索算法
-    private Route aStarSearch(Route route, Map<String, Double> weights) {
-        List<RouteData> pathData = route.getPathData();
-
-        // 计算路径中 distance, duration, price 的最大值和最小值，用于归一化
-        double maxDistance = pathData.stream().mapToDouble(RouteData::getDistance).max().orElse(1);
-        double minDistance = pathData.stream().mapToDouble(RouteData::getDistance).min().orElse(0);
-        double maxDuration = pathData.stream().mapToDouble(RouteData::getDuration).max().orElse(1);
-        double minDuration = pathData.stream().mapToDouble(RouteData::getDuration).min().orElse(0);
-        double maxPrice = pathData.stream().mapToDouble(RouteData::getPrice).max().orElse(1);
-        double minPrice = pathData.stream().mapToDouble(RouteData::getPrice).min().orElse(0);
+    private Route aStarSearch(Road startRoad, Road endRoad, Map<String, Double> weights) {
+        List<RouteData> pathData = new ArrayList<>(); // 用于存储结果路径数据
 
         // 初始化开放列表和关闭列表
         PriorityQueue<Node> openList = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
         Set<Node> closedList = new HashSet<>();
 
         // 初始化起点节点
-        Node startNode = new Node(pathData.get(0), null, 0, heuristic(pathData.get(0), route));
+        Node startNode = new Node(startRoad, null, 0, heuristic(startRoad, endRoad));
         openList.add(startNode);
 
         // A* 主循环
         while (!openList.isEmpty()) {
-            Node currentNode = openList.poll();  // 获取当前代价最小的节点
-            if (isGoal(currentNode, pathData)) {
-                // 如果达到目标点，构造路径并返回
-                return constructRoute(currentNode, route);
+            Node currentNode = openList.poll();
+            if (isGoal(currentNode, endRoad)) {
+                return constructRoute(currentNode, pathData); // 构建路径
             }
 
-            closedList.add(currentNode);  // 将当前节点标记为已处理
+            closedList.add(currentNode);
 
-            // 遍历当前节点的邻居
-            for (RouteData neighborData : getNeighbors(currentNode, pathData)) {
-                // 计算邻居节点的代价
-                double cost = getCost(neighborData, weights, maxDistance, minDistance, maxDuration, minDuration, maxPrice, minPrice);
-                Node neighborNode = new Node(neighborData, currentNode, currentNode.getG() + cost, 0);
-                neighborNode.setH(heuristic(neighborData, route));
+            // 遍历邻居节点
+            for (Road neighbor : getNeighbors(currentNode.getRoad())) {
+                double cost = getCost(neighbor, weights);
+                Node neighborNode = new Node(neighbor, currentNode, currentNode.getG() + cost, 0);
+                neighborNode.setH(heuristic(neighbor, endRoad));
 
                 if (closedList.contains(neighborNode)) {
-                    // 如果邻居节点已经在关闭列表中，跳过
                     continue;
                 }
 
                 if (!openList.contains(neighborNode)) {
-                    // 如果邻居节点不在开放列表中，添加到开放列表
                     openList.add(neighborNode);
                 }
             }
         }
-        return null; // 没有找到路径，返回 null
+        return null;
     }
 
-    // 计算代价函数，依据用户的权重和归一化的值
-    private double getCost(RouteData data, Map<String, Double> weights, double maxDistance, double minDistance, double maxDuration, double minDuration, double maxPrice, double minPrice) {
-        // 归一化的距离、时间和价格
-        double normalizedDistance = (data.getDistance() - minDistance) / (maxDistance - minDistance);
-        double normalizedDuration = (data.getDuration() - minDuration) / (maxDuration - minDuration);
-        double normalizedPrice = (data.getPrice() - minPrice) / (maxPrice - minPrice);
+    private double getCost(Road road, Map<String, Double> weights) {
+        // 根据 Road 属性计算代价（距离、时间、价格等）
+        double normalizedDistance = Double.parseDouble(String.valueOf( road.getDistance()));
+        double normalizedDuration = Double.parseDouble(String.valueOf(road.getDuration()));
+        double normalizedPrice = Double.parseDouble( String.valueOf(road.getPrice()));
 
-        // 从用户的权重中获取 distance、duration、price 的权重
         double weightDistance = weights.getOrDefault("weightDistance", 1.0);
         double weightDuration = weights.getOrDefault("weightDuration", 1.0);
         double weightPrice = weights.getOrDefault("weightPrice", 1.0);
 
-        // 加权计算代价
         return weightDistance * normalizedDistance +
                weightDuration * normalizedDuration +
                weightPrice * normalizedPrice;
     }
 
-    // 辅助方法：判断是否到达目标点（简化实现）
-    private boolean isGoal(Node currentNode, List<RouteData> pathData) {
-        return currentNode.getRouteData().equals(pathData.get(pathData.size() - 1));
+    private boolean isGoal(Node currentNode, Road endRoad) {
+        return currentNode.getRoad().equals(endRoad);
     }
 
-    // 辅助方法：构造最终路径（简化实现）
-    private Route constructRoute(Node node, Route route) {
-        List<RouteData> path = new ArrayList<>();
+    private Route constructRoute(Node node, List<RouteData> pathData) {
         while (node != null) {
-            path.add(0, node.getRouteData());  // 将节点数据加入路径
-            node = node.getParent();
+            Road road = node.getRoad();
+    
+            RouteData routeData = new RouteData();
+            routeData.setStartLat(road.getStartLat());
+            routeData.setStartLong(road.getStartLong());
+            routeData.setEndLat(road.getEndLat());
+            routeData.setEndLong(road.getEndLong());
+            routeData.setDistance(road.getDistance());
+            routeData.setPrice(road.getPrice());
+    
+            pathData.add(0, routeData); // 将节点数据加入路径
+            node = node.getParent(); // 移动到父节点
         }
-        route.setPathData(path);
-        System.out.println("寻路成功！路径如下：");
-    for (RouteData routeData : path) {
-        System.out.println("路段：起点 (" + routeData.getStartLat() + ", " + routeData.getStartLong() + 
-                           ") -> 终点 (" + routeData.getEndLat() + ", " + routeData.getEndLong() + 
-                           "), 距离：" + routeData.getDistance() + " km, 时间：" + routeData.getDuration() + 
-                           " 分钟, 价格：" + routeData.getPrice() + " 元");
-    }
-        return route;
+    
+        Route resultRoute = new Route();
+        resultRoute.setPathData(pathData); // 设置路径数据
+        return resultRoute;
     }
 
-    // 辅助方法：获取邻居节点（简化实现）
-    private List<RouteData> getNeighbors(Node currentNode, List<RouteData> pathData) {
-        // 根据实际业务需求实现邻居节点查找逻辑
-        return pathData; // 这里假设所有路径点都是邻居，实际实现中应根据逻辑改进
+    private List<Road> getNeighbors(Road currentRoad) {
+        // 根据实际需求获取邻居
+        return routeMapper.getNeighbors(currentRoad.getId()); // 假设方法返回相邻道路的列表
     }
 
-    // 辅助方法：计算启发式函数（H 值），这里简化为 0
-    private double heuristic(RouteData data, Route route) {
-        return 0; // 简化为 0，可以根据实际需求进行调整
+    private double heuristic(Road currentRoad, Road endRoad) {
+        // 这里可以实现更复杂的启发式函数，例如基于距离的估算
+        return 0; // 你可以根据具体情况修改
     }
 
-    // 内部类 Node 用于表示 A* 算法中的节点
     private static class Node {
-        private RouteData routeData;
+        private Road road;
         private Node parent;
-        private double g; // 实际代价
-        private double h; // 启发式代价
+        private double g;
+        private double h;
 
-        public Node(RouteData routeData, Node parent, double g, double h) {
-            this.routeData = routeData;
+        public Node(Road road, Node parent, double g, double h) {
+            this.road = road;
             this.parent = parent;
             this.g = g;
             this.h = h;
         }
 
         public double getF() {
-            return g + h;  // 总代价 = 实际代价 + 启发式代价
+            return g + h;
         }
 
-        public RouteData getRouteData() {
-            return routeData;
+        public Road getRoad() {
+            return road;
         }
 
         public Node getParent() {
@@ -220,4 +201,3 @@ public class RouteServiceImpl implements RouteService {
         }
     }
 }
-

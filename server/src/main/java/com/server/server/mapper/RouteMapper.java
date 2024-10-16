@@ -1,8 +1,11 @@
 package com.server.server.mapper;
+import java.util.List;
+
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 
+import com.server.server.data.Road;
 import com.server.server.data.Route;
 
 @Mapper
@@ -14,5 +17,12 @@ public interface RouteMapper {
 
     @Select("SELECT * FROM routes WHERE id = #{id}")
     Route getRouteById(int id);
+        // 获取 Road 通过 ID
+    @Select("SELECT * FROM road WHERE id = #{id}")
+    Road getRoadById(long id);
+
+    // 获取邻居 Road
+    @Select("SELECT * FROM road WHERE some_condition") // 根据需要定义条件
+    List<Road> getNeighbors(long roadId);
 }
 
