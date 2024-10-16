@@ -16,6 +16,7 @@ public class Road {
     private double endLat;     // 终点纬度
     private double endLong;    // 终点经度
     private double distance;   // 距离
+    private double duration=distance/60;
     private double price;      // 价格
     private String nextRoadId; // 下一道路ID
 
@@ -60,4 +61,5 @@ public class Road {
 
         return earthRadius * c; // 返回距离，单位千米
     }
+    
 }

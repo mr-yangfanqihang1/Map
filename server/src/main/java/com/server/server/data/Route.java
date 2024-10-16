@@ -1,6 +1,7 @@
 package com.server.server.data;
-import java.util.List;
 import java.time.LocalDateTime;
+import java.util.List;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -8,8 +9,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Route {
     private int userId;
-    private String startPoint;
-    private String endPoint;
+    private long startId;
+    private long endId;
     private String distance;
     private String duration;
     private String price;    // 新增价格字段
