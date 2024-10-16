@@ -52,7 +52,7 @@ private void loadInitialRoadStatuses() {
         List<RoadTrafficData> roadTrafficDataList = trafficDataMapper.getUserCountAndMaxLoadForAllRoads();
         
         for (RoadTrafficData data : roadTrafficDataList) {
-            int roadId = data.getRoadId();
+            long roadId = data.getRoadId();
             String status = data.getStatus();
             
             // 将每个道路的初始状态缓存到 Redis

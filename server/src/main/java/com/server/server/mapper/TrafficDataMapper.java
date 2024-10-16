@@ -17,12 +17,12 @@ public interface TrafficDataMapper {
     void updateTrafficData(TrafficData trafficData);
 
     @Select("SELECT * FROM traffic_data WHERE road_id = #{roadId}")
-    List<TrafficData> getTrafficDataByRoadId(int roadId);
+    List<TrafficData> getTrafficDataByRoadId(long roadId);
 
     @Select("SELECT COUNT(DISTINCT user_id) FROM traffic_data WHERE road_id = #{roadId}")
-    int getUserCountByRoadId(int roadId);
+    int getUserCountByRoadId(long roadId);
 
-    @Select("SELECT t.road_id AS roadId, COUNT(t.user_id) AS userCount, r.max_load AS maxLoad, r.status   FROM traffic_data t JOIN roads r ON t.road_id = r.id GROUP BY t.road_id;")
+    @Select("SELECT r.id AS roadId, COUNT(t.user_id) AS userCount, r.max_load AS maxLoad, r.status FROM roads r LEFT JOIN traffic_data t ON r.id = t.road_id GROUP BY r.id;")
     List<RoadTrafficData> getUserCountAndMaxLoadForAllRoads();
     
 
