@@ -25,14 +25,7 @@ public class RoadController {
     public List<Road> getRoadsByName(@RequestParam String name) {
         return roadService.getRoadsByName(name);
     }
-    /**
-     * 创建新道路
-     * @param road 道路实体对象
-     */
-    @PostMapping("/create")
-    public void createRoad(@RequestBody Road road) {
-        roadService.createRoad(road);
-    }
+
 
     /**
      * 获取所有道路信息

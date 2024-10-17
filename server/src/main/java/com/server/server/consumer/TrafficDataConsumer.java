@@ -59,6 +59,7 @@ public class TrafficDataConsumer implements Runnable {
         // 初始化时加载所有道路和用户数据到 Redis
         loadInitialRoad();
         loadInitialUser();
+        loadInitialTrafficData();
     }
 
     // 在 Redis 中缓存所有道路的初始状态
@@ -66,11 +67,16 @@ public class TrafficDataConsumer implements Runnable {
         try {
             System.out.println("Loading initial roads into Redis...");
             List<Road> roadList = roadMapper.getAllRoads();
-
+    
             for (Road road : roadList) {
+                // 根据 distance 计算 duration（假设速度为 30 km/h，转换为分钟）
+                road.setDuration(road.getDistance() * 2); // 计算时长
+    
                 // 将每个道路的初始状态缓存到 Redis
                 valueOps.set("roadData:roadId:" + road.getId(), road);
-                System.out.println("Cached initial road for roadId " + road.getId());
+                System.out.println("Cached initial road for roadId " + road.getId() 
+                    + ", 距离: " + road.getDistance() 
+                    + ", 时长: " + road.getDuration());
             }
             System.out.println("Initial road data loaded into Redis successfully.");
         } catch (Exception e) {
@@ -78,6 +84,7 @@ public class TrafficDataConsumer implements Runnable {
             e.printStackTrace();
         }
     }
+    
 
     // 在 Redis 中缓存所有用户的初始状态
     private void loadInitialUser() {
@@ -97,6 +104,25 @@ public class TrafficDataConsumer implements Runnable {
         }
     }
 
+     // 在 Redis 中缓存所有trafficData的初始状态
+     private void loadInitialTrafficData() {
+        try {
+            System.out.println("Loading initial trafficData into Redis...");
+            List<TrafficData> trafficDataList = trafficDataMapper.getAllTrafficData();  // 从 trafficDataMapper 获取所有用户
+
+            for (TrafficData trafficData : trafficDataList) {
+                // 将trafficData数据缓存到 Redis
+                valueOps.set("trafficData:trafficDataId:" + trafficData.getId(), trafficData);
+                System.out.println("Cached initial trafficData for trafficDataId " + trafficData.getId());
+            }
+            System.out.println("Initial trafficData data loaded into Redis successfully.");
+        } catch (Exception e) {
+            System.err.println("Error loading initial trafficData data into Redis: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    
     @Override
     public void run() {
         System.out.println("Consumer started!");
@@ -168,17 +194,62 @@ public class TrafficDataConsumer implements Runnable {
         }
     }
 
-    // 更新所有道路状态并缓存到 Redis
+    private int calculateUserCount(long roadId) {
+        // 使用 Redis 的 key 模式来扫描所有 trafficData 数据
+        String keyPattern = "trafficData:trafficDataId:*";
+        Set<String> keys = redisTemplate.keys(keyPattern); // 获取所有 trafficData 相关的键
+    
+        int userCount = 0;
+    
+        if (keys != null) {
+            // 遍历所有符合条件的 trafficData
+            for (String key : keys) {
+                // 从 Redis 中获取每个 trafficData 对象
+                TrafficData trafficData = (TrafficData) redisTemplate.opsForValue().get(key);
+                if (trafficData != null && trafficData.getRoadId() == roadId) {
+                    userCount++; // 如果 roadId 匹配，增加用户计数
+                }
+            }
+        }
+    
+        return userCount; // 返回该 roadId 上的用户数量
+    }
+    
+    public List<RoadTrafficData> getUserCountAndMaxLoadForAllRoads() {
+        List<Road> roads = roadService.getAllRoads(); // 从缓存中获取所有道路信息
+        List<RoadTrafficData> roadTrafficDataList = new ArrayList<>();
+        // 遍历 Redis 返回的数据，将其转化为 RoadTrafficData 对象
+        for (Road road : roads) {
+            if (road != null ) {
+                RoadTrafficData roadTrafficData = new RoadTrafficData();
+                roadTrafficData.setRoadId(road.getId());
+                roadTrafficData.setMaxLoad(road.getMaxLoad());
+                roadTrafficData.setStatus(road.getStatus());
+                
+                // 假设我们从 Redis 里存储了用户数量，可以类似读取或通过其他逻辑计算
+                int userCount = calculateUserCount(road.getId());
+                roadTrafficData.setUserCount(userCount);
+                
+                roadTrafficDataList.add(roadTrafficData);
+            }
+        }
+        return roadTrafficDataList;
+    }
+
+   // 更新所有道路状态并缓存到 Redis
     private void checkAndUpdateAllRoadStatuses() {
-        List<Road> roadList = roadService.getAllRoads();
+        List<RoadTrafficData> roadTrafficDataList = trafficDataMapper.getUserCountAndMaxLoadForAllRoads(); // 一次性获取所有道路的用户数量和最大负载
+        for (RoadTrafficData roadTrafficData : roadTrafficDataList) {
+            String newStatus = calculateRoadStatus(roadTrafficData.getUserCount(), roadTrafficData.getMaxLoad());
 
-        for (Road road : roadList) {
-            String newStatus = calculateRoadStatus(trafficDataMapper.getUserCountByRoadId(road.getId()), road.getMaxLoad());
-
-            if (!newStatus.equals(road.getStatus())) {
+            if (!newStatus.equals(roadTrafficData.getStatus())) {
                 nonFairLock.lock(); // 获取非公平锁进行更新
                 try {
-                    road.setStatus(newStatus); // 更新状态
+                    // 创建或更新 Road 对象
+                    Road road = new Road();
+                    road.setId(roadTrafficData.getRoadId());
+                    road.setMaxLoad(roadTrafficData.getMaxLoad());
+                    road.setStatus(newStatus);
                     valueOps.set("roadData:roadId:" + road.getId(), road); // 更新到 Redis
                     System.out.println("Updated road status for roadId " + road.getId() + ": " + newStatus);
                 } finally {
@@ -187,6 +258,7 @@ public class TrafficDataConsumer implements Runnable {
             }
         }
     }
+
 
     // 从 Redis 中读取道路对象并批量更新到数据库
     private void updateRoadDataFromRedis() {

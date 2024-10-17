@@ -24,7 +24,8 @@ public interface TrafficDataMapper {
 
     @Select("SELECT r.id AS roadId, COUNT(t.user_id) AS userCount, r.max_load AS maxLoad, r.status FROM roads r LEFT JOIN traffic_data t ON r.id = t.road_id GROUP BY r.id;")
     List<RoadTrafficData> getUserCountAndMaxLoadForAllRoads();
-
+    @Select("SELECT * FROM traffic_data ")
+    List<TrafficData> getAllTrafficData();
 
     // 批量插入
     void batchInsertTrafficData(@Param("trafficDataList") List<TrafficData> trafficDataList);

@@ -4,6 +4,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class TrafficData {
+    private long Id=0; 
     private long roadId;     // 外键
     private int userId;     // 外键
     private float speed;

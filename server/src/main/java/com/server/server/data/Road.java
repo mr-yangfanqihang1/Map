@@ -16,7 +16,7 @@ public class Road {
     private double endLat;     // 终点纬度
     private double endLong;    // 终点经度
     private double distance;   // 距离
-    private double duration=distance/60;
+    private double duration;   // 时间
     private double price;      // 价格
     private String nextRoadId; // 下一道路ID
 
@@ -30,19 +30,25 @@ public class Road {
         this.startLong = startLong;
         this.endLat = endLat;
         this.endLong = endLong;
-        this.distance = calculateDistance(); // 计算距离
+        
+        // 计算距离并赋值
+        this.distance = calculateDistance();
 
-        // 如果价格不为 0，则根据距离计算价格
+        // 根据距离计算价格
         if (Math.abs(pricePerKm - 0.0) > 1e-10) {
             this.price = pricePerKm * this.distance;
         } else {
             this.price = 0;
         }
 
+        // 计算时间 (分钟)，假设速度为 30 km/h
+        this.duration = this.distance*2;
+
         this.status = status;
         this.maxLoad = maxLoad;
         this.nextRoadId = nextRoadId;
     }
+
 
     // 计算距离的方法
     double calculateDistance() {

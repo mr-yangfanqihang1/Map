@@ -1,6 +1,7 @@
 package com.server.server.mapper;
 import com.server.server.data.*;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -16,7 +17,8 @@ public interface UserMapper {
     void updateUser(User user);
     @Select("SELECT * FROM user WHERE id = #{id}")
     User getUserById(int id);
-
+    @Delete("DELETE  FROM user WHERE id = #{id}")
+    User deleteUserById(int id);
     @Select("SELECT * FROM user")
     List<User> getAllUsers();
 }

@@ -57,24 +57,30 @@ public class RoadService {
             return new ArrayList<>();  // 查询失败时返回空列表
         }
     }
-    
 
-    // 插入道路数据
-    public void createRoad(Road road) {
-        roadMapper.insertRoad(road);
-        // 同时缓存到 Redis
-        valueOps.set("roadData:roadId:" + road.getId(), road);
-    }
-
-    // 从数据库获取所有道路数据
+    // 从redis获取所有道路数据
     public List<Road> getAllRoads() {
-        // Redis 中没有通配符查询，可以通过数据库获取所有道路
-        List<Road> roads = roadMapper.getAllRoads();
-        for (Road road : roads) {
-            valueOps.set("roadData:roadId:" + road.getId(), road);  // 将所有道路缓存到 Redis
+        List<Road> roads = new ArrayList<Road>();
+        String key = "roadData:roadId:*";
+        
+        try {
+            @SuppressWarnings("unchecked")
+            List<Road> redisRoads = (ArrayList<Road>)valueOps.get(key);
+            
+            if (redisRoads != null && !redisRoads.isEmpty()) {
+                System.out.println("Get all roads from Redis");
+                return redisRoads;
+            } else {
+                System.out.println("Road data not found in Redis");
+            }
+        } catch (Exception e) {
+            System.out.println("Error while getting all roads from Redis: " + e.getMessage());
+            e.printStackTrace();
         }
+        
         return roads;
     }
+    
 
     // 根据 ID 从 Redis 或数据库获取 Road
     public Road getRoadById(long id) {
