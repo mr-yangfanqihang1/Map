@@ -1,6 +1,5 @@
 package com.server.server.controller;
 import com.server.server.service.RoadService;
-import com.server.server.service.RoadStatusService;
 import com.server.server.data.Road;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,28 +10,21 @@ import java.util.List;
 public class RoadController {
 
     private final RoadService roadService;
-    private final RoadStatusService roadStatusService;
 
     // 使用构造器注入，确保依赖关系正确注入
-    public RoadController(RoadService roadService, RoadStatusService roadStatusService) {
+    public RoadController(RoadService roadService) {
         this.roadService = roadService;
-        this.roadStatusService = roadStatusService;
     }
 
     /**
-     * 获取某条道路的状态
-     * @param roadId 道路的唯一标识符
-     * @return 道路的状态信息
+     * 根据道路名称获取道路 ID 列表
+     * @param name 道路名称
+     * @return 道路 ID 列表
      */
-    @GetMapping("/status/{roadId}")
-    public String getRoadStatus(@PathVariable int roadId) {
-        if (roadStatusService.isRoadStatusCached(roadId)) {
-            return "Road ID " + roadId + " status: " + roadStatusService.getRoadStatus(roadId);
-        } else {
-            return "Road ID " + roadId + " status not cached in Redis";
-        }
+    @GetMapping("/name")
+    public List<Road> getRoadsByName(@RequestParam String name) {
+        return roadService.getRoadsByName(name);
     }
-
     /**
      * 创建新道路
      * @param road 道路实体对象

@@ -4,6 +4,7 @@ import com.server.server.consumer.TrafficDataConsumer;
 import com.server.server.data.*;
 import com.server.server.mapper.RoadMapper;
 import com.server.server.mapper.TrafficDataMapper;
+import com.server.server.mapper.UserMapper;
 import com.server.server.request.traffic.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -22,9 +23,15 @@ public class TrafficDataService {
 
     @Autowired
     private RoadMapper roadMapper;
+    @Autowired
+    private UserMapper userMapper;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate; // 自动注入RedisTemplate
+    @Autowired
+    private RoadService roadService; // 自动注入RedisTemplate
+
+
 
     // 动态优先级队列
     private final PriorityBlockingQueue<TrafficDataRequest> queue = new PriorityBlockingQueue<>();
@@ -46,7 +53,7 @@ public class TrafficDataService {
         System.out.println("Consumer thread pool initialized...");
         
         // 将消费者任务提交到线程池
-        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, roadMapper, queryResults, redisTemplate)); 
+        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, roadMapper,userMapper, queryResults, redisTemplate,roadService)); 
     }
 
 

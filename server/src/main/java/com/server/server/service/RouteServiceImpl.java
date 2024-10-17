@@ -26,6 +26,8 @@ public class RouteServiceImpl implements RouteService {
 
     @Autowired
     private RouteMapper routeMapper;
+    @Autowired
+    private RoadService roadService;
 
     @Autowired
     private UserMapper userMapper;
@@ -62,10 +64,9 @@ public class RouteServiceImpl implements RouteService {
         // 解析 preferences JSON 字段，获取权重
         Map<String, Double> weights = getUserWeights(user.getPreferences());
 
-        // 从数据库获取起始和结束 Road
-        Road startRoad = routeMapper.getRoadById(route.getStartId());
-        Road endRoad = routeMapper.getRoadById(route.getEndId());
-
+        // 从redis获取起始和结束 Road
+        Road startRoad = roadService.getRoadById(route.getStartId());
+        Road endRoad = roadService.getRoadById(route.getEndId());
         System.out.println("Start Road: " + startRoad.toString());
         System.out.println("End Road: " + endRoad.toString());
 
@@ -210,7 +211,7 @@ public class RouteServiceImpl implements RouteService {
     private List<Road> getNeighbors(Road currentRoad) {
         System.out.println("Getting neighbors for road: " + currentRoad.getName());
         // 根据实际需求获取邻居
-        return routeMapper.getNeighbors(currentRoad.getId()); // 假设方法返回相邻道路的列表
+        return roadService.getNeighbors(currentRoad.getId()); // 假设方法返回相邻道路的列表
     }
 
     private double heuristic(Road currentRoad, Road endRoad) {
