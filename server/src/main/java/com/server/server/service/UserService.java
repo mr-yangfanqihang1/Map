@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 import java.util.Set;
 
     @Service
@@ -87,4 +89,4 @@ public class UserService {
             System.out.println("No user data found in Redis to sync.");
         }
     }
-}
+    }

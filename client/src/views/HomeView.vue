@@ -2,14 +2,7 @@
   <div id="map-container">
     <div id="container"></div>
 
-    <!-- 现有道路状态和路线管理部分 -->
-    <div class="road-status">
-      <input v-model="roadId" placeholder="Enter road ID" />
-      <button @click="getRoadStatus">Get Road Status</button>
-      <p v-if="roadStatus">Road Status: {{ roadStatus }}</p>
-      <p v-if="error" class="error">{{ error }}</p>
-    </div>
-
+    <!-- 路线管理部分，左上角展示已计算的路线信息 -->
     <div class="route-management">
       <h3>Calculate Route</h3>
       <form @submit.prevent="calculateRoute">
@@ -46,7 +39,7 @@
       </form>
 
       <!-- 显示路线绘制完成的提示 -->
-      <p v-if="calculatedRoute">{{ calculatedRoute }}</p>
+      <p v-if="calculatedRoute" class="calculated-info">{{ calculatedRoute }}</p>
       <p v-if="calcError" class="error">{{ calcError }}</p>
     </div>
   </div>
@@ -61,9 +54,6 @@ export default {
   name: 'MapWithNavigation',
   data() {
     return {
-      roadId: '',
-      roadStatus: '',
-      error: '',
       calculateInput: {
         userId: '',
         startId: '',
@@ -74,7 +64,6 @@ export default {
       calcError: '',
       map: null,
       polyline: null,
-      loading: false,
     };
   },
   mounted() {
@@ -99,23 +88,6 @@ export default {
       } else {
         console.error('AMap is not defined');
       }
-    },
-    getRoadStatus() {
-      if (!this.roadId || isNaN(this.roadId)) {
-        this.error = 'Please enter a valid road ID';
-        return;
-      }
-      this.error = '';
-      this.roadStatus = '';
-
-      axios.get(`http://localhost:8080/api/roads/status/${this.roadId}`)
-          .then(response => {
-            this.roadStatus = response.data.status;
-          })
-          .catch(error => {
-            console.error('Error fetching road status:', error.response ? error.response.data : error);
-            this.error = 'Failed to fetch road status. Please try again.';
-          });
     },
     calculateRoute() {
       this.calcError = '';
@@ -177,35 +149,58 @@ export default {
 <style scoped>
 #container {
   width: 100%;
-  height: 600px;
+  height: 100vh; /* 使用整个视口的高度来确保没有空白部分 */
+  position: relative;
+  margin: 0;
+  padding: 0;
 }
 
-.road-status, .route-management {
-  margin-top: 20px;
+/* 将路线管理部分放在地图的左上角并缩小框 */
+.route-management {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: white;
+  padding: 6px;  /* 缩小 padding */
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  font-size: 12px; /* 缩小字体 */
+  width: 260px;  /* 控制框的宽度 */
 }
 
 input {
-  padding: 10px;
-  margin-right: 10px;
+  padding: 6px; /* 缩小 padding */
+  margin-bottom: 6px; /* 缩小 margin */
   border: 1px solid #ccc;
   border-radius: 4px;
+  width: 90%; /* 输入框宽度适应父容器 */
+  font-size: 12px; /* 缩小字体 */
 }
 
 button {
-  padding: 10px 15px;
+  padding: 6px; /* 缩小 padding */
   background-color: #007bff;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  width: 100%;
+  font-size: 12px; /* 缩小字体 */
 }
 
 button:hover {
   background-color: #0056b3;
 }
 
+.calculated-info {
+  margin-top: 8px; /* 缩小 margin */
+  font-weight: bold;
+}
+
 .error {
   color: red;
   font-weight: bold;
+  font-size: 12px; /* 缩小字体 */
 }
 </style>
