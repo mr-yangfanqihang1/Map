@@ -28,8 +28,6 @@ public class TrafficDataService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate; // 自动注入RedisTemplate
-    @Autowired
-    private RoadService roadService; // 自动注入RedisTemplate
 
 
 
@@ -53,7 +51,7 @@ public class TrafficDataService {
         System.out.println("Consumer thread pool initialized...");
         
         // 将消费者任务提交到线程池
-        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, roadMapper,userMapper, queryResults, redisTemplate,roadService)); 
+        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, roadMapper,userMapper, queryResults, redisTemplate)); 
     }
 
 

@@ -5,7 +5,7 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.lang.NonNull;
 @Configuration
-public class WebConfig {    //解决跨域问腿
+public class WebConfig {    //解决跨域问题
     @Bean 
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {

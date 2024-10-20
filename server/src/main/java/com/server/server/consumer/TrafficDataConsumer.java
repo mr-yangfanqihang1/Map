@@ -1,5 +1,4 @@
 package com.server.server.consumer;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -18,14 +17,11 @@ import com.server.server.mapper.RoadMapper;
 import com.server.server.mapper.TrafficDataMapper;
 import com.server.server.mapper.UserMapper;
 import com.server.server.request.traffic.*;
-import com.server.server.service.RoadService;
-
 public class TrafficDataConsumer implements Runnable {
     private final PriorityBlockingQueue<TrafficDataRequest> queue;
     private final TrafficDataMapper trafficDataMapper;
     private final RoadMapper roadMapper;
     private final UserMapper userMapper;  // 添加 userMapper
-    private final RoadService roadService;
     private final ConcurrentHashMap<Integer, List<TrafficData>> queryResults;
     private List<TrafficData> insertBatch = new ArrayList<>();
     private List<TrafficData> updateBatch = new ArrayList<>();
@@ -44,8 +40,7 @@ public class TrafficDataConsumer implements Runnable {
             RoadMapper roadMapper,
             UserMapper userMapper,  // 传入 userMapper
             ConcurrentHashMap<Integer, List<TrafficData>> queryResults,
-            RedisTemplate<String, Object> redisTemplate,
-            RoadService roadService
+            RedisTemplate<String, Object> redisTemplate
     ) {
         this.queue = queue;
         this.trafficDataMapper = trafficDataMapper;
@@ -54,7 +49,6 @@ public class TrafficDataConsumer implements Runnable {
         this.queryResults = queryResults;
         this.redisTemplate = redisTemplate;
         this.valueOps = redisTemplate.opsForValue();
-        this.roadService = roadService;
 
         // 初始化时加载所有道路和用户数据到 Redis
         loadInitialRoad();
@@ -194,74 +188,117 @@ public class TrafficDataConsumer implements Runnable {
         }
     }
 
-    private int calculateUserCount(long roadId) {
-        // 使用 Redis 的 key 模式来扫描所有 trafficData 数据
-        String keyPattern = "trafficData:trafficDataId:*";
-        Set<String> keys = redisTemplate.keys(keyPattern); // 获取所有 trafficData 相关的键
+    // private RoadTrafficData calculateRoadTrafficData(Road road) {
+    //     // Step 1: 定义 Redis key 模式并获取所有符合条件的 trafficData 键
+    //     String keyPattern = "trafficData:trafficDataId:*";
+    //     System.out.println("Fetching keys with pattern: " + keyPattern);
+        
+    //     Set<String> keys = redisTemplate.keys(keyPattern); // 获取所有 trafficData 相关的键
+    //     System.out.println("Found " + (keys != null ? keys.size() : 0) + " keys matching the pattern.");
     
-        int userCount = 0;
+    //     int userCount = 0;
+    //     double speedTotal = 0.0;
     
-        if (keys != null) {
-            // 遍历所有符合条件的 trafficData
-            for (String key : keys) {
-                // 从 Redis 中获取每个 trafficData 对象
-                TrafficData trafficData = (TrafficData) redisTemplate.opsForValue().get(key);
-                if (trafficData != null && trafficData.getRoadId() == roadId) {
-                    userCount++; // 如果 roadId 匹配，增加用户计数
-                }
-            }
-        }
-    
-        return userCount; // 返回该 roadId 上的用户数量
-    }
-    
-    public List<RoadTrafficData> getUserCountAndMaxLoadForAllRoads() {
-        List<Road> roads = roadService.getAllRoads(); // 从缓存中获取所有道路信息
-        List<RoadTrafficData> roadTrafficDataList = new ArrayList<>();
-        // 遍历 Redis 返回的数据，将其转化为 RoadTrafficData 对象
-        for (Road road : roads) {
-            if (road != null ) {
-                RoadTrafficData roadTrafficData = new RoadTrafficData();
-                roadTrafficData.setRoadId(road.getId());
-                roadTrafficData.setMaxLoad(road.getMaxLoad());
-                roadTrafficData.setStatus(road.getStatus());
+    //     // Step 2: 如果找到符合条件的 keys，则遍历这些 keys
+    //     if (keys != null && !keys.isEmpty()) {
+    //         for (String key : keys) {
+    //             // Step 3: 获取每个 trafficData 对象
+    //             TrafficData trafficData = (TrafficData) redisTemplate.opsForValue().get(key);
                 
-                // 假设我们从 Redis 里存储了用户数量，可以类似读取或通过其他逻辑计算
-                int userCount = calculateUserCount(road.getId());
-                roadTrafficData.setUserCount(userCount);
-                
-                roadTrafficDataList.add(roadTrafficData);
-            }
-        }
-        return roadTrafficDataList;
-    }
+    //             // Step 4: 检查 trafficData 是否为 null 并且 roadId 是否匹配
+    //             if (trafficData != null) {
+    //                 System.out.println("Processing trafficDataId: " + trafficData.getId() + " for roadId: " + trafficData.getRoadId());
+    
+    //                 if (trafficData.getRoadId() == road.getId()) {
+    //                     userCount++; // 如果 roadId 匹配，增加用户计数
+    //                     speedTotal += trafficData.getSpeed();
+    //                     System.out.println("Matched roadId: " + road.getId() + ", current userCount: " + userCount + ", current speedTotal: " + speedTotal);
+    //                 }
+    //             } else {
+    //                 System.out.println("trafficData is null for key: " + key);
+    //             }
+    //         }
+    //     } else {
+    //         System.out.println("No trafficData found for the given key pattern.");
+    //     }
+    
+    //     // Step 5: 计算平均速度，并构造 RoadTrafficData 对象
+    //     double averageSpeed = userCount > 0 ? speedTotal / userCount : 0.0;
+    //     System.out.println("For roadId: " + road.getId() + ", final userCount: " + userCount + ", averageSpeed: " + averageSpeed);
+    
+    //     // Step 6: 创建 RoadTrafficData 对象
+    //     RoadTrafficData roadTrafficData = new RoadTrafficData(road.getId(), userCount, road.getMaxLoad(), road.getStatus(), averageSpeed);
+        
+    //     // Step 7: 返回 RoadTrafficData 对象
+    //     return roadTrafficData;
+    // }
+    
+
+    
 
    // 更新所有道路状态并缓存到 Redis
-    private void checkAndUpdateAllRoadStatuses() {
-        List<RoadTrafficData> roadTrafficDataList = trafficDataMapper.getUserCountAndMaxLoadForAllRoads(); // 一次性获取所有道路的用户数量和最大负载
-        for (RoadTrafficData roadTrafficData : roadTrafficDataList) {
-            String newStatus = calculateRoadStatus(roadTrafficData.getUserCount(), roadTrafficData.getMaxLoad());
+   private void checkAndUpdateAllRoadStatuses() {
+    System.out.println("Start check And Update All Road Statuses");
 
-            if (!newStatus.equals(roadTrafficData.getStatus())) {
-                nonFairLock.lock(); // 获取非公平锁进行更新
-                try {
-                    // 创建或更新 Road 对象
-                    Road road = new Road();
-                    road.setId(roadTrafficData.getRoadId());
-                    road.setMaxLoad(roadTrafficData.getMaxLoad());
-                    road.setStatus(newStatus);
-                    valueOps.set("roadData:roadId:" + road.getId(), road); // 更新到 Redis
-                    System.out.println("Updated road status for roadId " + road.getId() + ": " + newStatus);
-                } finally {
-                    nonFairLock.unlock(); // 释放非公平锁
+    List<RoadTrafficData> roadTrafficDataList = new ArrayList<>();
+    
+    // Step 1: 获取RoadTrafficData 对象
+
+    try {
+        roadTrafficDataList = trafficDataMapper.getRoadTrafficData();
+    } catch (Exception e) {
+        System.out.println("Error while getRoadTrafficData " + e.getMessage());
+        e.printStackTrace();
+    }
+
+    // Step 2: 遍历每个 RoadTrafficData 进行状态检查与更新
+    for (RoadTrafficData roadTrafficData : roadTrafficDataList) {
+        
+        Road road = (Road) redisTemplate.opsForValue().get("roadData:roadId:" + roadTrafficData.getRoadId());
+
+        // Step 3: 计算状态
+        String calculatedStatus = calculateRoadStatus(roadTrafficData.getUserCount(), roadTrafficData.getMaxLoad());
+
+        if (!calculatedStatus.equals(roadTrafficData.getStatus())) {
+            System.out.println("Road status mismatch, updating road status for roadId: " + roadTrafficData.getRoadId());
+
+            nonFairLock.lock(); // 获取非公平锁
+            try {
+                if (road == null) {
+                    road = new Road();
                 }
+                // Step 4: 更新 Road 对象属性
+                road.setId(roadTrafficData.getRoadId());
+                road.setMaxLoad(roadTrafficData.getMaxLoad());
+                road.setStatus(roadTrafficData.getStatus());
+                
+                // Step 5: 根据计算的速度更新持续时间
+                if (roadTrafficData.getAverageSpeed() != 0) {
+                    road.setDuration(road.getDistance() * 60 / roadTrafficData.getAverageSpeed());
+                } else {
+                    System.out.println("Warning: Average speed is zero for roadId: " + roadTrafficData.getRoadId());
+                    road.setDuration(0); // 防止除以零
+                }
+
+                // Step 6: 更新 Redis 中的数据
+                valueOps.set("roadData:roadId:" + road.getId(), road);
+                System.out.println("Updated road status for roadId: " + road.getId());
+            } catch (Exception e) {
+                System.out.println("Error while updating road status for roadId: " + roadTrafficData.getRoadId() + ": " + e.getMessage());
+                e.printStackTrace();
+            } finally {
+                nonFairLock.unlock(); // 释放锁
             }
         }
     }
+    System.out.println("Finished check And Update All Road Statuses");
+}
+
 
 
     // 从 Redis 中读取道路对象并批量更新到数据库
     private void updateRoadDataFromRedis() {
+        System.out.println("updating RoadData From redis");
         Set<String> roadKeysSet = redisTemplate.keys("roadData:roadId:*");
         if (roadKeysSet != null && !roadKeysSet.isEmpty()) {
             for (String key : roadKeysSet) {
