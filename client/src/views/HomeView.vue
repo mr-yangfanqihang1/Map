@@ -13,19 +13,31 @@
             required
         />
 
-        <!-- 起点输入框 -->
+        <!-- 起点输入框，支持动态匹配 -->
         <input
             v-model="calculateInput.startId"
+            @input="searchStartPoints"
             placeholder="Startpoint"
             required
         />
+        <ul v-if="startSuggestions.length" class="suggestions-list">
+          <li v-for="suggestion in startSuggestions" :key="suggestion.id" @click="selectStartPoint(suggestion)">
+            {{ suggestion.name }}
+          </li>
+        </ul>
 
-        <!-- 终点输入框 -->
+        <!-- 终点输入框，支持动态匹配 -->
         <input
             v-model="calculateInput.endId"
+            @input="searchEndPoints"
             placeholder="Endpoint"
             required
         />
+        <ul v-if="endSuggestions.length" class="suggestions-list">
+          <li v-for="suggestion in endSuggestions" :key="suggestion.id" @click="selectEndPoint(suggestion)">
+            {{ suggestion.name }}
+          </li>
+        </ul>
 
         <!-- 优先级输入框 -->
         <input
@@ -60,6 +72,8 @@ export default {
         endId: '',
         priority: 0,
       },
+      startSuggestions: [],  // 存储起点匹配结果
+      endSuggestions: [],    // 存储终点匹配结果
       calculatedRoute: '',
       calcError: '',
       map: null,
@@ -88,6 +102,40 @@ export default {
       } else {
         console.error('AMap is not defined');
       }
+    },
+    searchStartPoints() {
+      if (this.calculateInput.startId) {
+        axios.get(`http://localhost:8080/api/roads/name?name=${this.calculateInput.startId}`)
+            .then(response => {
+              this.startSuggestions = response.data;  // 期望返回的是道路数组
+            })
+            .catch(error => {
+              console.error('Error fetching start points:', error.response ? error.response.data : error);
+            });
+      } else {
+        this.startSuggestions = [];
+      }
+    },
+    searchEndPoints() {
+      if (this.calculateInput.endId) {
+        axios.get(`http://localhost:8080/api/roads/name?name=${this.calculateInput.endId}`)
+            .then(response => {
+              this.endSuggestions = response.data;  // 期望返回的是道路数组
+            })
+            .catch(error => {
+              console.error('Error fetching end points:', error.response ? error.response.data : error);
+            });
+      } else {
+        this.endSuggestions = [];
+      }
+    },
+    selectStartPoint(suggestion) {
+      this.calculateInput.startId = suggestion.name;  // 将用户选择的道路名称填入
+      this.startSuggestions = [];  // 清空建议列表
+    },
+    selectEndPoint(suggestion) {
+      this.calculateInput.endId = suggestion.name;  // 将用户选择的道路名称填入
+      this.endSuggestions = [];  // 清空建议列表
     },
     calculateRoute() {
       this.calcError = '';
@@ -149,58 +197,76 @@ export default {
 <style scoped>
 #container {
   width: 100%;
-  height: 100vh; /* 使用整个视口的高度来确保没有空白部分 */
+  height: 100vh;
   position: relative;
   margin: 0;
   padding: 0;
 }
 
-/* 将路线管理部分放在地图的左上角并缩小框 */
 .route-management {
   position: absolute;
   top: 10px;
   left: 10px;
   background-color: white;
-  padding: 6px;  /* 缩小 padding */
+  padding: 6px;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   z-index: 1000;
-  font-size: 12px; /* 缩小字体 */
-  width: 260px;  /* 控制框的宽度 */
+  font-size: 12px;
+  width: 260px;
 }
 
 input {
-  padding: 6px; /* 缩小 padding */
-  margin-bottom: 6px; /* 缩小 margin */
+  padding: 6px;
+  margin-bottom: 6px;
   border: 1px solid #ccc;
   border-radius: 4px;
-  width: 90%; /* 输入框宽度适应父容器 */
-  font-size: 12px; /* 缩小字体 */
+  width: 90%;
+  font-size: 12px;
 }
 
 button {
-  padding: 6px; /* 缩小 padding */
+  padding: 6px;
   background-color: #007bff;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   width: 100%;
-  font-size: 12px; /* 缩小字体 */
+  font-size: 12px;
 }
 
 button:hover {
   background-color: #0056b3;
 }
 
+.suggestions-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.suggestions-list li {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.suggestions-list li:hover {
+  background-color: #f0f0f0;
+}
+
 .calculated-info {
-  margin-top: 8px; /* 缩小 margin */
+  margin-top: 8px;
   font-weight: bold;
 }
 
 .error {
   color: red;
   font-weight: bold;
-  font-size: 12px; /* 缩小字体 */
+  font-size: 12px;
 }
 </style>
