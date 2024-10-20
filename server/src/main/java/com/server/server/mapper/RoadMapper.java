@@ -28,7 +28,8 @@ public interface RoadMapper {
     // 更新道路状态
     @Update("UPDATE roads SET status = #{status} WHERE id = #{id}")
     void updateRoadStatus(long id, String status);
-
+    @Update("UPDATE roads SET duration = #{duration} WHERE id = #{id}")
+    void updateRoadDuration(long id, double duration);
     // 更新道路的价格
     @Update("UPDATE roads SET price = #{price} WHERE id = #{id}")
     void updateRoadPrice(long id, double price);

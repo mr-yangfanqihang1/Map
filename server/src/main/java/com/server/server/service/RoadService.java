@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.ScanOptions;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class RoadService {
@@ -60,26 +61,37 @@ public class RoadService {
 
     // 从redis获取所有道路数据
     public List<Road> getAllRoads() {
-        List<Road> roads = new ArrayList<Road>();
-        String key = "roadData:roadId:*";
+    List<Road> roads = new ArrayList<>();
+    String pattern = "roadData:roadId:*";
+    
+    try {
+        // 获取所有匹配的键
+        Set<String> keys = redisTemplate.keys(pattern);
         
-        try {
-            @SuppressWarnings("unchecked")
-            List<Road> redisRoads = (ArrayList<Road>)valueOps.get(key);
-            
-            if (redisRoads != null && !redisRoads.isEmpty()) {
-                System.out.println("Get all roads from Redis");
-                return redisRoads;
-            } else {
-                System.out.println("Road data not found in Redis");
+        if (keys != null && !keys.isEmpty()) {
+            // 根据键逐个获取值
+            for (String key : keys) {
+                Road road = (Road) valueOps.get(key);
+                if (road != null) {
+                    roads.add(road);
+                }
             }
-        } catch (Exception e) {
-            System.out.println("Error while getting all roads from Redis: " + e.getMessage());
-            e.printStackTrace();
+            
+            if (!roads.isEmpty()) {
+                System.out.println("Get all roads from Redis");
+                return roads;
+            }
         }
         
-        return roads;
+        System.out.println("Road data not found in Redis");
+    } catch (Exception e) {
+        System.out.println("Error while getting all roads from Redis: " + e.getMessage());
+        e.printStackTrace();
     }
+    
+    return roads;
+}
+
     
 
     // 根据 ID 从 Redis 或数据库获取 Road
