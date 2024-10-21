@@ -39,14 +39,6 @@
           </li>
         </ul>
 
-        <!-- 优先级输入框 -->
-        <input
-            v-model="calculateInput.priority"
-            type="number"
-            placeholder="Priority"
-            required
-        />
-
         <button type="submit">Calculate Route</button>
       </form>
 
@@ -70,7 +62,6 @@ export default {
         userId: '',
         startId: '',
         endId: '',
-        priority: 0,
       },
       startSuggestions: [],  // 存储起点匹配结果
       endSuggestions: [],    // 存储终点匹配结果
@@ -153,7 +144,7 @@ export default {
             this.calculatedRoute = '路线绘制完成';
 
             // 重置输入框
-            this.calculateInput = { userId: '', startId: '', endId: '', priority: 0 };
+            this.calculateInput = { userId: '', startId: '', endId: '' };
           })
           .catch(error => {
             console.error('Error calculating route:', error.response ? error.response.data : error);
