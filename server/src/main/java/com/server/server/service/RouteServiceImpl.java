@@ -46,6 +46,7 @@ public class RouteServiceImpl implements RouteService {
         // 调整动态优先级
         adjustDynamicPriority(route);
 
+
         // 打印 route 数据，调试用
         System.out.println("Calculating route for: " + route.toString());
         Map<String, Double> weights = getUserWeights(userService.getPreferences(route.getUserId()));

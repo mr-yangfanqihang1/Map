@@ -26,6 +26,8 @@ public class RoadService {
         this.redisTemplate = redisTemplate;
         this.valueOps = redisTemplate.opsForValue();
     }
+    // 根据道路名称获取道路 ID
+
 
     //用名称模糊搜索
     public List<Road> getRoadsByName(String name) {

@@ -13,9 +13,15 @@
             required
         />
 
+        <!-- 隐形起点输入框 -->
+        <input
+            type="hidden"
+            v-model="calculateInput.startId"
+        />
+
         <!-- 起点输入框，支持动态匹配 -->
         <input
-            v-model="calculateInput.startId"
+            v-model="startInput"
             @input="searchStartPoints"
             placeholder="Startpoint"
             required
@@ -26,9 +32,15 @@
           </li>
         </ul>
 
+        <!-- 隐形终点输入框 -->
+        <input
+            type="hidden"
+            v-model="calculateInput.endId"
+        />
+
         <!-- 终点输入框，支持动态匹配 -->
         <input
-            v-model="calculateInput.endId"
+            v-model="endInput"
             @input="searchEndPoints"
             placeholder="Endpoint"
             required
@@ -63,8 +75,10 @@ export default {
         startId: '',
         endId: '',
       },
-      startSuggestions: [],  // 存储起点匹配结果
-      endSuggestions: [],    // 存储终点匹配结果
+      startInput: '',  // 用于显示用户输入的起点名称
+      endInput: '',    // 用于显示用户输入的终点名称
+      startSuggestions: [],
+      endSuggestions: [],
       calculatedRoute: '',
       calcError: '',
       map: null,
@@ -95,8 +109,8 @@ export default {
       }
     },
     searchStartPoints() {
-      if (this.calculateInput.startId) {
-        axios.get(`http://localhost:8080/api/roads/name?name=${this.calculateInput.startId}`)
+      if (this.startInput) {
+        axios.get(`http://localhost:8080/api/roads/name?name=${this.startInput}`)
             .then(response => {
               this.startSuggestions = response.data;  // 期望返回的是道路数组
             })
@@ -108,8 +122,8 @@ export default {
       }
     },
     searchEndPoints() {
-      if (this.calculateInput.endId) {
-        axios.get(`http://localhost:8080/api/roads/name?name=${this.calculateInput.endId}`)
+      if (this.endInput) {
+        axios.get(`http://localhost:8080/api/roads/name?name=${this.endInput}`)
             .then(response => {
               this.endSuggestions = response.data;  // 期望返回的是道路数组
             })
@@ -121,14 +135,15 @@ export default {
       }
     },
     selectStartPoint(suggestion) {
-      this.calculateInput.startId = suggestion.id;  // 将用户选择的道路 ID 填入
+      this.calculateInput.startId = suggestion.id;  // 将 ID 存储到隐形输入框
+      this.startInput = suggestion.name;              // 将名称填入可见输入框
       this.startSuggestions = [];  // 清空建议列表
     },
     selectEndPoint(suggestion) {
-      this.calculateInput.endId = suggestion.id;  // 将用户选择的道路 ID 填入
+      this.calculateInput.endId = suggestion.id;  // 将 ID 存储到隐形输入框
+      this.endInput = suggestion.name;              // 将名称填入可见输入框
       this.endSuggestions = [];  // 清空建议列表
     },
-
     calculateRoute() {
       this.calcError = '';
       this.calculatedRoute = '';
@@ -136,16 +151,14 @@ export default {
       // 调用后端计算路线并绘制路径
       axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput)
           .then(response => {
-            // 如果后端返回了路径数据，则绘制路线
             if (response.data.pathData) {
-              this.drawRoute(response.data.pathData);  // 使用 pathData 绘制路线
+              this.drawRoute(response.data.pathData);
             }
-
-            // 显示简短提示
             this.calculatedRoute = '路线绘制完成';
-
             // 重置输入框
             this.calculateInput = { userId: '', startId: '', endId: '' };
+            this.startInput = '';
+            this.endInput = '';
           })
           .catch(error => {
             console.error('Error calculating route:', error.response ? error.response.data : error);
@@ -154,32 +167,27 @@ export default {
     },
     drawRoute(pathData) {
       if (this.polyline) {
-        this.polyline.setMap(null);  // 如果之前绘制过路线，清除它
+        this.polyline.setMap(null);
       }
 
-      // 构建路径点数组
       const routePath = pathData.flatMap((segment) => {
         return [
-          [segment.startLong, segment.startLat],  // 起点经纬度
-          [segment.endLong, segment.endLat]  // 终点经纬度
+          [segment.startLong, segment.startLat],
+          [segment.endLong, segment.endLat]
         ];
       });
 
-      // 创建新的 Polyline（多段线）
       this.polyline = new AMap.Polyline({
-        path: routePath,  // 路径数据
-        borderWeight: 6,  // 边框宽度
-        strokeColor: '#33A1C9',  // 线条颜色
-        strokeOpacity: 0.8,  // 透明度
-        strokeWeight: 5,  // 线条宽度
-        lineJoin: 'round',  // 线条连接处样式
-        strokeStyle: 'solid',  // 实线
+        path: routePath,
+        borderWeight: 6,
+        strokeColor: '#33A1C9',
+        strokeOpacity: 0.8,
+        strokeWeight: 5,
+        lineJoin: 'round',
+        strokeStyle: 'solid',
       });
 
-      // 设置路线显示在地图上
       this.polyline.setMap(this.map);
-
-      // 自动缩放地图以适应路线
       this.map.setFitView([this.polyline]);
     },
   },

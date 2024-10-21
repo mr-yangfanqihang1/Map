@@ -16,6 +16,11 @@ public interface RoadMapper {
     @Select("SELECT * FROM roads WHERE id = #{id}")
     Road getRoadById(long id);
 
+    // 根据道路名称查询道路信息
+    @Select("SELECT * FROM roads WHERE name = #{name}")
+    Road findByName(String name);
+
+
     // 查询所有道路信息
     @Select("SELECT * FROM roads")
     List<Road> getAllRoads();
