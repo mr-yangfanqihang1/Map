@@ -10,7 +10,7 @@ public class Road {
     private String startName;  // 起点名称
     private String name;       // 道路名称
     private String status;     // 道路状态，enum('红','橙','绿')
-    private int maxLoad;       // 最大载重
+    public int maxLoad;       // 最大载重
     private double startLat;   // 起点纬度
     private double startLong;  // 起点经度
     private double endLat;     // 终点纬度
@@ -67,5 +67,38 @@ public class Road {
 
         return earthRadius * c; // 返回距离，单位千米
     }
-    
+
+    public long getId() {
+        return id;
+    }
+
+    public double getStartLat() {
+        return startLat;
+    }
+
+    public double getStartLong() {return startLong;}
+
+    public double getEndLat() {
+        return endLat;
+    }
+
+    public double getEndLong() {
+        return endLong;
+    }
+
+    public double getDistance() {
+        return distance;
+    }
+
+    public double getDuration() {
+        return duration;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public String getName() {
+        return name;
+    }
 }

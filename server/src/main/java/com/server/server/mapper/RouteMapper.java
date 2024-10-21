@@ -1,6 +1,8 @@
 package com.server.server.mapper;
+import java.util.ArrayList;
 import java.util.List;
 
+import com.server.server.data.PathData;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
@@ -25,5 +27,8 @@ public interface RouteMapper {
     // 获取邻居 Road
     @Select("SELECT * FROM roads WHERE FIND_IN_SET(id, (SELECT next_roadid FROM roads WHERE id = #{roadId}))")
     List<Road> getNeighbors(long roadId);
+
+    @Select("SELECT COUNT(*) FROM routes")
+    ArrayList<PathData> getPathData();
 }
 
