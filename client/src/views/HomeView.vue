@@ -121,13 +121,14 @@ export default {
       }
     },
     selectStartPoint(suggestion) {
-      this.calculateInput.startId = suggestion.name;  // 将用户选择的道路名称填入
+      this.calculateInput.startId = suggestion.id;  // 将用户选择的道路 ID 填入
       this.startSuggestions = [];  // 清空建议列表
     },
     selectEndPoint(suggestion) {
-      this.calculateInput.endId = suggestion.name;  // 将用户选择的道路名称填入
+      this.calculateInput.endId = suggestion.id;  // 将用户选择的道路 ID 填入
       this.endSuggestions = [];  // 清空建议列表
     },
+
     calculateRoute() {
       this.calcError = '';
       this.calculatedRoute = '';
