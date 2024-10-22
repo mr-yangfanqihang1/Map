@@ -1,0 +1,366 @@
+<template>
+  <div id="map-container">
+    <div id="container"></div>
+
+    <!-- 路线管理部分，左上角展示已计算的路线信息 -->
+    <div class="route-management">
+      <h3>Calculate Route</h3>
+      <form @submit.prevent="calculateRoute">
+        <!-- 用户 ID 输入框 -->
+        <input
+            v-model="calculateInput.userId"
+            placeholder="User ID"
+            required
+        />
+
+        <!-- 隐形起点输入框 -->
+        <input
+            type="hidden"
+            v-model="calculateInput.startId"
+        />
+
+        <!-- 起点输入框，支持动态匹配 -->
+        <input
+            v-model="startInput"
+            @input="searchStartPoints"
+            placeholder="Startpoint"
+            required
+        />
+        <ul v-if="startSuggestions.length" class="suggestions-list">
+          <li v-for="suggestion in startSuggestions" :key="suggestion.id" @click="selectStartPoint(suggestion)">
+            {{ suggestion.name }}
+          </li>
+        </ul>
+
+        <!-- 隐形终点输入框 -->
+        <input
+            type="hidden"
+            v-model="calculateInput.endId"
+        />
+
+        <!-- 终点输入框，支持动态匹配 -->
+        <input
+            v-model="endInput"
+            @input="searchEndPoints"
+            placeholder="Endpoint"
+            required
+        />
+        <ul v-if="endSuggestions.length" class="suggestions-list">
+          <li v-for="suggestion in endSuggestions" :key="suggestion.id" @click="selectEndPoint(suggestion)">
+            {{ suggestion.name }}
+          </li>
+        </ul>
+
+        <button type="submit">Calculate Route</button>
+        <button @click="toggleRoadStatus">{{ showRoadStatus ? 'Hide' : 'Show' }} Road Status</button>
+      </form>
+
+      <!-- 显示路线绘制完成的提示 -->
+      <p v-if="calculatedRoute" class="calculated-info">{{ calculatedRoute }}</p>
+      <p v-if="calcError" class="error">{{ calcError }}</p>
+    </div>
+  </div>
+</template>
+
+<script>
+// eslint-disable-next-line no-undef
+/* global AMap */
+import axios from 'axios';
+
+export default {
+  name: 'MapWithNavigation',
+  data() {
+    return {
+      calculateInput: {
+        userId: '',
+        startId: '',
+        endId: '',
+        showRoadStatus: false,
+        movingIcon: null, // Store moving icon reference
+        currentSegmentIndex: 0, // Track current segment index for movement
+      },
+      startInput: '',  // 用于显示用户输入的起点名称
+      endInput: '',    // 用于显示用户输入的终点名称
+      startSuggestions: [],
+      endSuggestions: [],
+      calculatedRoute: '',
+      calcError: '',
+      map: null,
+      polyline: null,
+    };
+  },
+  mounted() {
+    this.initMap();
+    this.initWebSocket(); // Initialize WebSocket connection on mount
+  },
+  methods: {
+    initMap() {
+      const script = document.createElement('script');
+      script.src = 'https://webapi.amap.com/maps?v=1.4.15&key=73f31edb64d7baefbc909c8bac5b839f';
+      script.onload = () => {
+        this.initializeMap();
+      };
+      document.head.appendChild(script);
+    },
+    initWebSocket() {
+      const socket = new WebSocket('ws://localhost:8080/traffic-updates');
+
+      socket.onmessage = (event) => {
+        const update = JSON.parse(event.data);
+        this.updateRouteTime(update);
+      };
+
+      socket.onerror = (error) => console.error('WebSocket error:', error);
+    },
+
+    updateRouteTime(update) {
+      // Logic to update estimated time for users on affected routes.
+      if (update.routeId === this.calculateInput.startId || update.routeId === this.calculateInput.endId) {
+        // Update logic here based on received update data.
+        console.log('Route time updated:', update);
+
+        // You might want to notify users or refresh their route information here.
+      }
+    },
+
+    initializeMap() {
+      if (window.AMap) {
+        this.map = new AMap.Map('container', {
+          resizeEnable: true,
+          zoom: 14,
+          center: [116.397428, 39.90923],
+        });
+      } else {
+        console.error('AMap is not defined');
+      }
+    },
+    searchStartPoints() {
+      if (this.startInput) {
+        axios.get(`http://localhost:8080/api/roads/name?name=${this.startInput}`)
+            .then(response => {
+              this.startSuggestions = response.data;  // 期望返回的是道路数组
+            })
+            .catch(error => {
+              console.error('Error fetching start points:', error.response ? error.response.data : error);
+            });
+      } else {
+        this.startSuggestions = [];
+      }
+    },
+    searchEndPoints() {
+      if (this.endInput) {
+        axios.get(`http://localhost:8080/api/roads/name?name=${this.endInput}`)
+            .then(response => {
+              this.endSuggestions = response.data;  // 期望返回的是道路数组
+            })
+            .catch(error => {
+              console.error('Error fetching end points:', error.response ? error.response.data : error);
+            });
+      } else {
+        this.endSuggestions = [];
+      }
+    },
+    selectStartPoint(suggestion) {
+      this.calculateInput.startId = suggestion.id;  // 将 ID 存储到隐形输入框
+      this.startInput = suggestion.name;              // 将名称填入可见输入框
+      this.startSuggestions = [];  // 清空建议列表
+    },
+    selectEndPoint(suggestion) {
+      this.calculateInput.endId = suggestion.id;  // 将 ID 存储到隐形输入框
+      this.endInput = suggestion.name;              // 将名称填入可见输入框
+      this.endSuggestions = [];  // 清空建议列表
+    },
+    calculateRoute() {
+      this.calcError = '';
+      this.calculatedRoute = '';
+
+      // 调用后端计算路线并绘制路径
+      axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput)
+          .then(response => {
+            if (response.data.pathData) {
+              this.drawRoute(response.data.pathData);
+            }
+            this.calculatedRoute = '路线绘制完成';
+            // 重置输入框
+            this.calculateInput = { userId: '', startId: '', endId: '' };
+            this.startInput = '';
+            this.endInput = '';
+          })
+          .catch(error => {
+            console.error('Error calculating route:', error.response ? error.response.data : error);
+            this.calcError = '计算路线失败，请重试。';
+          });
+    },
+    drawRoute(pathData) {
+      if (this.polyline) {
+        this.polyline.setMap(null);
+      }
+
+      const routePath = pathData.flatMap((segment) => {
+        return [
+          [segment.startLong, segment.startLat],
+          [segment.endLong, segment.endLat]
+        ];
+      });
+
+      this.polyline = new AMap.Polyline({
+        path: routePath,
+        borderWeight: 6,
+        strokeColor: '#33A1C9',
+        strokeOpacity: 0.8,
+        strokeWeight: 5,
+        lineJoin: 'round',
+        strokeStyle: 'solid',
+      });
+
+      this.polyline.setMap(this.map);
+      this.map.setFitView([this.polyline]);
+      this.startMovingIcon(pathData); // Start moving icon after drawing route
+    },
+
+    startMovingIcon(pathData) {
+      if (this.movingIcon) {
+        this.movingIcon.setMap(null); // Remove previous icon if exists
+      }
+
+      this.movingIcon = new AMap.Marker({
+        position: [pathData[0].startLong, pathData[0].startLat],
+        icon: 'path/to/icon.png', // Path to your moving icon image
+        map: this.map,
+      });
+
+      this.moveAlongRoute(pathData);
+    },
+
+    moveAlongRoute(pathData) {
+      const interval = setInterval(() => {
+        if (this.currentSegmentIndex < pathData.length) {
+          const segment = pathData[this.currentSegmentIndex];
+          const nextPosition = [segment.endLong, segment.endLat];
+
+          this.movingIcon.setPosition(nextPosition);
+          this.uploadTrafficData(segment); // Upload traffic data for current segment
+
+          this.currentSegmentIndex++;
+        } else {
+          clearInterval(interval); // Stop when route is completed
+        }
+      }, 1000); // Adjust speed here (in milliseconds)
+    },
+    uploadTrafficData(segment) {
+      const trafficData = { /* construct your traffic data based on segment */ };
+
+      axios.post('http://localhost:8080/api/traffic/upload', trafficData)
+          .then(response => console.log('Traffic data uploaded:', response))
+          .catch(error => console.error('Error uploading traffic data:', error));
+    },
+
+    toggleRoadStatus() {
+      this.showRoadStatus = !this.showRoadStatus;
+      if (this.showRoadStatus) {
+        this.displayRoadStatus();
+      } else {
+        this.clearRoadStatus();
+      }
+    },
+    displayRoadStatus() {
+      // Logic to fetch and display all road statuses on the map
+      axios.get('http://localhost:8080/api/roads/status')
+          .then(response => {
+            // Assume response contains road data with status information
+            response.data.forEach(road => {
+              const color = road.status === 'open' ? '#33A1C9' : '#FF0000'; // Example colors
+              const polyline = new AMap.Polyline({
+                path: road.coordinates,
+                strokeColor: color,
+                strokeWeight: 6,
+              });
+              polyline.setMap(this.map);
+            });
+          })
+          .catch(error => console.error('Error fetching road status:', error));
+    },
+    clearRoadStatus() {
+      // Logic to clear displayed road statuses from the map
+      this.map.clearMap(); // This clears all overlays, you may want to manage them more specifically
+    },
+  },
+};
+</script>
+
+<style scoped>
+#container {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+.route-management {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: white;
+  padding: 6px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  font-size: 12px;
+  width: 260px;
+}
+
+input {
+  padding: 6px;
+  margin-bottom: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 90%;
+  font-size: 12px;
+}
+
+button {
+  padding: 6px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  font-size: 12px;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.suggestions-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.suggestions-list li {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.suggestions-list li:hover {
+  background-color: #f0f0f0;
+}
+
+.calculated-info {
+  margin-top: 8px;
+  font-weight: bold;
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+  font-size: 12px;
+}
+</style>
