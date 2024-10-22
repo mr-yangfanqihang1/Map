@@ -1,6 +1,13 @@
 <template>
   <div id="map-container">
     <div id="container"></div>
+    <!-- 个人中心按钮，位于右上角 -->
+    <div class="user-profile">
+      <router-link :to="`/user/${calculateInput.userId}`">
+        <button>个人中心</button>
+      </router-link>
+    </div>
+
 
     <!-- 路线管理部分，左上角展示已计算的路线信息 -->
     <div class="route-management">
@@ -9,7 +16,9 @@
         <!-- 用户 ID 输入框 -->
         <input
             v-model="calculateInput.userId"
+            disabled
             placeholder="User ID"
+            :readonly="isUserIdReadonly"
             required
         />
 
@@ -81,14 +90,24 @@ export default {
       endSuggestions: [],
       calculatedRoute: '',
       calcError: '',
+      isUserIdReadonly: false,
       map: null,
       polyline: null,
     };
   },
   mounted() {
     this.initMap();
+    this.setUserIdFromUrl(); // 设置用户 ID
   },
   methods: {
+    setUserIdFromUrl() {
+      const url = window.location.href;
+      const match = url.match(/\/(\d+)$/); // 匹配最后的数字 ID
+      if (match) {
+        this.calculateInput.userId = match[1]; // 将 ID 填入 userId 输入框
+        this.isUserIdReadonly = true; // 将输入框设为只读
+      }
+    },
     initMap() {
       const script = document.createElement('script');
       script.src = 'https://webapi.amap.com/maps?v=1.4.15&key=73f31edb64d7baefbc909c8bac5b839f';
@@ -156,7 +175,7 @@ export default {
             }
             this.calculatedRoute = '路线绘制完成';
             // 重置输入框
-            this.calculateInput = { userId: '', startId: '', endId: '' };
+            this.calculateInput = {startId: '', endId: '' };
             this.startInput = '';
             this.endInput = '';
           })
@@ -214,6 +233,28 @@ export default {
   z-index: 1000;
   font-size: 12px;
   width: 260px;
+}
+
+/* 个人中心按钮样式 */
+.user-profile {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+}
+
+.user-profile button {
+  padding: 6px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.user-profile button:hover {
+  background-color: #0056b3;
 }
 
 input {
