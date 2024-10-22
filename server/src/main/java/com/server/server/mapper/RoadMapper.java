@@ -25,8 +25,6 @@ public interface RoadMapper {
     @Select("SELECT * FROM roads")
     List<Road> getAllRoads();
 
-    @Select("SELECT COUNT(*) max_load FROM roads")
-    int getMaxload();
 
     // 根据道路 ID 查询道路的最大负载
     @Select("SELECT max_load FROM roads WHERE id = #{id}")
@@ -45,6 +43,7 @@ public interface RoadMapper {
     // 更新下一道路 ID
     @Update("UPDATE roads SET next_roadid = #{nextRoadId} WHERE id = #{id}")
     void updateNextRoadId(long id, String nextRoadId);
+
 
 
 }

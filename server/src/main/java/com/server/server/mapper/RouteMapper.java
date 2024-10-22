@@ -28,7 +28,5 @@ public interface RouteMapper {
     @Select("SELECT * FROM roads WHERE FIND_IN_SET(id, (SELECT next_roadid FROM roads WHERE id = #{roadId}))")
     List<Road> getNeighbors(long roadId);
 
-    @Select("SELECT COUNT(*) FROM routes")
-    ArrayList<PathData> getPathData();
 }
 
