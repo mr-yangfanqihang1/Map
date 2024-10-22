@@ -61,16 +61,16 @@ public class TrafficDataConsumer implements Runnable {
         try {
             System.out.println("Loading initial roads into Redis...");
             List<Road> roadList = roadMapper.getAllRoads();
-            System.out.println("Roads total: " + roadList.size());
+    
             for (Road road : roadList) {
                 // 根据 distance 计算 duration（假设速度为 30 km/h，转换为分钟）
                 road.setDuration(road.getDistance() * 2); // 计算时长
     
                 // 将每个道路的初始状态缓存到 Redis
                 valueOps.set("roadData:roadId:" + road.getId(), road);
-                // System.out.println("Cached initial road for roadId " + road.getId() 
-                //     + ", 距离: " + road.getDistance() 
-                //     + ", 时长: " + road.getDuration());
+                System.out.println("Cached initial road for roadId " + road.getId() 
+                    + ", 距离: " + road.getDistance() 
+                    + ", 时长: " + road.getDuration());
             }
             System.out.println("Initial road data loaded into Redis successfully.");
         } catch (Exception e) {

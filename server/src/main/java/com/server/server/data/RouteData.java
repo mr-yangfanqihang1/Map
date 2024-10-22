@@ -10,7 +10,6 @@ public class RouteData {
     private double startLong;
     private double endLat;
     private double endLong;
-    private String status;
     private double distance;  // 距离
     private double duration;  // 时间
     private double price;     // 价格
