@@ -22,6 +22,11 @@ public class UserController {
         System.out.println("user update"+user);
         userService.updateUser(user);
     }
+    @GetMapping("/insertAllUsers")
+    public void insertUser(@RequestBody User user) {
+        System.out.println("inserting 300,000 users...");
+        userService.insertUsersInBatch();
+    }
     @GetMapping("/{id}")
     public User getUserById(@PathVariable int id) {
         return userService.getUserById(id);

@@ -11,6 +11,10 @@ public interface RoadMapper {
     @Insert("INSERT INTO roads (id,start_name, name, status, max_load, start_lat, start_long, end_lat, end_long, distance, price, next_roadid) " +
             "VALUES (#{id}, #{startName}, #{name}, #{status}, #{maxLoad}, #{startLat}, #{startLong}, #{endLat}, #{endLong}, #{distance}, #{price}, #{nextRoadId})")
     void insertRoad(Road road);
+    @Update("UPDATE roads SET start_name = #{startName}, name = #{name}, status = #{status}, max_load = #{maxLoad}, " +
+    "start_lat = #{startLat}, start_long = #{startLong}, end_lat = #{endLat}, end_long = #{endLong}, " +
+    "distance = #{distance}, price = #{price}, next_roadid = #{nextRoadId} WHERE id = #{id}")
+    void updateRoad(Road road);
 
     // 根据道路 ID 查询道路信息
     @Select("SELECT * FROM roads WHERE id = #{id}")

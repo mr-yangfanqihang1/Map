@@ -21,5 +21,7 @@ public interface UserMapper {
     User deleteUserById(int id);
     @Select("SELECT * FROM user")
     List<User> getAllUsers();
+
+    void insertUsers(List<User> users);
 }
 

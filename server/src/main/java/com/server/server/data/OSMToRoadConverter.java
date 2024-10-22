@@ -2,7 +2,7 @@ package com.server.server.data;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.server.server.mapper.RoadCopyMapper;
+import com.server.server.mapper.RoadMapper;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -13,10 +13,10 @@ import java.util.*;
 @Component
 public class OSMToRoadConverter {
 
-    private final RoadCopyMapper roadCopyMapper;
+    private final RoadMapper roadMapper;
 
-    public OSMToRoadConverter(RoadCopyMapper roadCopyMapper) {
-        this.roadCopyMapper = roadCopyMapper;
+    public OSMToRoadConverter(RoadMapper roadMapper) {
+        this.roadMapper = roadMapper;
     }
 
     // 保存节点的经纬度
@@ -31,7 +31,7 @@ public class OSMToRoadConverter {
     // 解析 OSM 数据并构建邻接表
     public void parseOSMData() throws IOException {
         // 使用相对路径读取文件
-        File osmFile = Paths.get("server/src/main/resources/export.json").toFile();
+        File osmFile = Paths.get("server/src/main/resources/export1.json").toFile();
 
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode rootNode = objectMapper.readTree(osmFile);
@@ -87,18 +87,18 @@ public class OSMToRoadConverter {
 
         // 插入或更新数据库中的道路记录
         for (Road road : roads) {
-            Road existingRoad = roadCopyMapper.getRoadById(road.getId()); // 查找数据库中是否存在该道路
+            Road existingRoad = roadMapper.getRoadById(road.getId()); // 查找数据库中是否存在该道路
 
             if (existingRoad != null) {
                 // 道路已存在，更新 nextRoadId
                 String updatedNextRoadId = mergeNextRoadIds(existingRoad.getNextRoadId(), road.getNextRoadId());
                 existingRoad.setNextRoadId(updatedNextRoadId);
 
-                roadCopyMapper.updateRoad(existingRoad); // 更新数据库中的道路
+                roadMapper.updateRoad(existingRoad); // 更新数据库中的道路
                 System.out.println("道路ID " + road.getId() + " 已更新 nextRoadId。");
             } else {
                 // 如果道路不存在，插入新的道路
-                roadCopyMapper.insertRoad(road);
+                roadMapper.insertRoad(road);
                 System.out.println("插入新道路ID " + road.getId());
             }
         }

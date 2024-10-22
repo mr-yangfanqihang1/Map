@@ -1,4 +1,6 @@
 package com.server.server.service;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import com.server.server.data.User;
 import com.server.server.mapper.UserMapper;
+
+import jakarta.transaction.Transactional;
 
     @Service
 public class UserService {
@@ -96,4 +100,33 @@ public class UserService {
             System.out.println("No user data found in Redis to sync.");
         }
     }
+
+    @Transactional
+    public void insertUsersInBatch() {
+        // Batch size for each insertion (can adjust depending on database performance)
+        int batchSize = 1000;
+        List<User> usersBatch = new ArrayList<>();
+
+        for (int i = 1; i <= 300000; i++) {
+            User user = new User();
+            user.setId(i);
+            user.setUsername("扬帆起航");
+            user.setPreferences("{\"time\": 30, \"price\": 50, \"distance\": 20}");
+            user.setPriority(1);
+            
+            usersBatch.add(user);
+
+            if (usersBatch.size() == batchSize) {
+                userMapper.insertUsers(usersBatch);
+                usersBatch.clear();  // Clear the batch after insertion
+            }
+        }
+
+        // Insert any remaining users if the batch is not empty
+        if (!usersBatch.isEmpty()) {
+            userMapper.insertUsers(usersBatch);
+        }
+
+        System.out.println("300,000 users inserted successfully!");
     }
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.server.server.mapper.UserMapper">
+
+    <!-- Batch insert users -->
+    <insert id="insertUsers">
+        INSERT INTO user (id, username, preferences, priority)
+        VALUES
+        <foreach collection="list" item="user" separator=",">
+            (#{user.id}, #{user.username}, #{user.preferences}, #{user.priority})
+        </foreach>
+    </insert>
+
+</mapper>
