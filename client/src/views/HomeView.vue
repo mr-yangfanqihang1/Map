@@ -59,9 +59,13 @@
             {{ suggestion.name }}
           </li>
         </ul>
+      </form>
 
+      <form @submit.prevent="outputAndDrawRoute">
+        <!-- 其他输入框保持不变 -->
         <button type="submit">Calculate Route</button>
       </form>
+
 
       <!-- 显示路线绘制完成的提示 -->
       <p v-if="calculatedRoute" class="calculated-info">{{ calculatedRoute }}</p>
@@ -90,6 +94,7 @@ export default {
       endSuggestions: [],
       calculatedRoute: '',
       calcError: '',
+      routeData: null,       // 用于存储计算后的路线数据
       isUserIdReadonly: false,
       map: null,
       polyline: null,
@@ -157,32 +162,41 @@ export default {
       this.calculateInput.startId = suggestion.id;  // 将 ID 存储到隐形输入框
       this.startInput = suggestion.name;              // 将名称填入可见输入框
       this.startSuggestions = [];  // 清空建议列表
+
     },
     selectEndPoint(suggestion) {
       this.calculateInput.endId = suggestion.id;  // 将 ID 存储到隐形输入框
       this.endInput = suggestion.name;              // 将名称填入可见输入框
       this.endSuggestions = [];  // 清空建议列表
+
+      // 选择终点后立即计算路线
+      this.calculateRoute();
     },
+    // 其他方法保持不变
     calculateRoute() {
       this.calcError = '';
       this.calculatedRoute = '';
 
-      // 调用后端计算路线并绘制路径
+      // 调用后端计算路线并将数据存储到 routeData 中
       axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput)
           .then(response => {
-            if (response.data.pathData) {
-              this.drawRoute(response.data.pathData);
-            }
-            this.calculatedRoute = '路线绘制完成';
-            // 重置输入框
-            this.calculateInput = {startId: '', endId: '' };
-            this.startInput = '';
-            this.endInput = '';
+            // 存储路线数据
+            this.routeData = response.data;
           })
           .catch(error => {
             console.error('Error calculating route:', error.response ? error.response.data : error);
             this.calcError = '计算路线失败，请重试。';
           });
+    },
+    // 在点击按钮时输出结果和绘制线条
+    outputAndDrawRoute() {
+      if (this.routeData && this.routeData.pathData) {
+        this.drawRoute(this.routeData.pathData);
+        const roundedDuration = Math.round(this.routeData.duration); // 对时间进行四舍五入
+        this.calculatedRoute = `路线绘制完成，预计时间：${roundedDuration} 分钟`; // 更新显示信息
+      } else {
+        this.calcError = '没有可用的路线数据。';
+      }
     },
     drawRoute(pathData) {
       if (this.polyline) {
