@@ -5,12 +5,15 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +43,70 @@ public class RouteServiceImpl implements RouteService {
     public Route getRouteById(int id) {
         return routeMapper.getRouteById(id);
     }
+    private static final int PRIORITY_LEVELS = 5; // 定义 5 个优先级队列
+    private final List<Queue<Route>> priorityQueues = new ArrayList<>(PRIORITY_LEVELS);
+
+// 初始化多个优先级队列
+    public RouteServiceImpl() {
+        for (int i = 0; i < PRIORITY_LEVELS; i++) {
+        priorityQueues.add(new LinkedList<>());
+        }
+    }
+    private void adjustDynamicPriority(Route route) {
+        LocalDateTime now = LocalDateTime.now();
+        long waitingTime = Duration.between(route.getRequestTime(), now).toMinutes();
+    
+        // 根据等待时间动态调整优先级，每等待 1 分钟，优先级提升 1 级
+        int additionalPriority = (int) (waitingTime / 0.5); 
+    
+        System.out.println("Adjusting priority for route. Original priority: " 
+            + route.getPriority() + ", Additional priority: " + additionalPriority);
+    
+        // 确保优先级始终在合法范围内，防止超出边界
+        int newPriority = Math.min(PRIORITY_LEVELS - 1, Math.max(0, route.getPriority() - additionalPriority));
+        route.setPriority(newPriority);
+    }
+    private void addToPriorityQueue(Route route) {
+        int priority = Math.min(route.getPriority(), PRIORITY_LEVELS - 1); // 确保优先级不超过最大值
+        System.out.println("Adding route to priority queue: Priority " + priority);
+        priorityQueues.get(priority).offer(route); // 将请求添加到对应的优先级队列中
+    }
+    public void scheduleRoutes() {
+        int timeSlice = 1000; // 每个优先级的时间片，单位为毫秒
+        boolean hasProcessed = false; // 标志是否处理了请求
+        
+        for (int i = 0; i < PRIORITY_LEVELS; i++) {
+            Queue<Route> currentQueue = priorityQueues.get(i);
+            
+            // 只处理当前队列中的第一个请求，避免长时间处理一个队列
+            if (!currentQueue.isEmpty()) {
+                Route route = currentQueue.poll();  // 取出队列中的第一个请求
+                System.out.println("Processing route with priority " + route.getPriority());
+    
+                // 执行路径计算
+                Route calculatedRoute = calculateRoute(route);
+                
+                hasProcessed = true; // 标记处理成功
+    
+                // 处理完该请求后，时间片用尽，跳到下一个优先级队列
+                try {
+                    Thread.sleep(timeSlice);  // 模拟每个请求消耗的时间
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.out.println("Error during scheduling: " + e.getMessage());
+                }
+            }
+        }
+        
+        if (!hasProcessed) {
+            System.out.println("No routes to process.");
+        }
+    }    
+    @Scheduled(fixedDelay = 3000)  // 每 3 秒执行一次调度
+    public void runScheduler() {
+    System.out.println("Running route scheduling...");
+    scheduleRoutes();
+    }
 
     @Override
     public Route calculateRoute(Route route) {
@@ -48,10 +115,11 @@ public class RouteServiceImpl implements RouteService {
             System.out.println("Found existing route in database.");
             return existingRoute; // 如果数据库中有，直接返回
         }
-        // 调整动态优先级
-        adjustDynamicPriority(route);
+                // 调整动态优先级
+                adjustDynamicPriority(route);
 
 
+        
         // 打印 route 数据，调试用
         System.out.println("Calculating route for: " + route.toString());
         Map<String, Double> weights = getUserWeights(userService.getPreferences(route.getUserId()));
@@ -74,16 +142,7 @@ public class RouteServiceImpl implements RouteService {
         return calculatedRoute;
     }
 
-    private void adjustDynamicPriority(Route route) {
-        LocalDateTime now = LocalDateTime.now();
-        long waitingTime = Duration.between(route.getRequestTime(), now).toMinutes();
-        int additionalPriority = (int) (waitingTime / 0.5);
-
-        System.out.println("Adjusting priority for route. Original priority: "
-                + route.getPriority() + ", Additional priority: " + additionalPriority);
-
-        route.setPriority(route.getPriority() + additionalPriority);
-    }
+    
 
     @SuppressWarnings("unchecked")
     private Map<String, Double> getUserWeights(String preferencesJson) {
@@ -231,10 +290,10 @@ public class RouteServiceImpl implements RouteService {
         System.out.println("Getting neighbors for road: " + currentRoad.getName());
         return roadService.getNeighbors(currentRoad.getId()); // 假设方法返回相邻道路的列表
     }
-
     private double heuristic(Road currentRoad, Road endRoad) {
-        // 可以实现基于距离的启发式估算
-        double heuristicValue = 0; // 简单的启发式函数可以改进
+        double deltaX = Math.abs(currentRoad.getStartLat() - endRoad.getStartLat());
+        double deltaY = Math.abs(currentRoad.getStartLong() - endRoad.getStartLong());
+        double heuristicValue = deltaX + deltaY;
         System.out.println("Heuristic value for road " + currentRoad.getName() + " to " + endRoad.getName() + ": " + heuristicValue);
         return heuristicValue;
     }
