@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Select;
 
 import com.server.server.data.Road;
 import com.server.server.data.Route;
+import org.springframework.data.repository.query.Param;
 
 @Mapper
 public interface RouteMapper {
@@ -30,5 +31,8 @@ public interface RouteMapper {
 
     @Select("SELECT COUNT(*) FROM routes")
     ArrayList<PathData> getPathData();
+
+    // 通过起点和终点查询路径
+    Route findPathByStartAndEnd(@Param("startId") Long startId, @Param("endId") Long endId);
 }
 
