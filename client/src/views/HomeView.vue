@@ -70,6 +70,9 @@
       <!-- 显示路线绘制完成的提示 -->
       <p v-if="calculatedRoute" class="calculated-info">{{ calculatedRoute }}</p>
       <p v-if="calcError" class="error">{{ calcError }}</p>
+      <p v-if="showPendingMessage" class="pending-info">计算尚未完成，请稍候...</p>
+
+
     </div>
   </div>
 </template>
@@ -96,8 +99,11 @@ export default {
       calcError: '',
       routeData: null,       // 用于存储计算后的路线数据
       isUserIdReadonly: false,
+      isLoading: false, // 添加加载状态
+      isCalculationComplete: false, // 添加计算完成状态
       map: null,
       polyline: null,
+      showPendingMessage: false, // 新增变量控制待处理消息的显示
     };
   },
   mounted() {
@@ -176,28 +182,39 @@ export default {
     calculateRoute() {
       this.calcError = '';
       this.calculatedRoute = '';
+      this.showPendingMessage = true; // 显示计算提示
 
       // 调用后端计算路线并将数据存储到 routeData 中
       axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput)
           .then(response => {
             // 存储路线数据
             this.routeData = response.data;
+            this.isCalculationComplete = true; // 计算完成
+            this.showPendingMessage = false;
           })
           .catch(error => {
             console.error('Error calculating route:', error.response ? error.response.data : error);
             this.calcError = '计算路线失败，请重试。';
+            this.isCalculationComplete = false; // 计算失败
+            this.showPendingMessage = false; // 隐藏计算提示
+          })
+          .finally(() => {
+            this.isLoading = false; // 结束加载
           });
+      // 2秒后自动隐藏消息
+      setTimeout(() => {
+        this.showPendingMessage = false; // 隐藏计算消息
+      }, 2000);
     },
     // 在点击按钮时输出结果和绘制线条
     outputAndDrawRoute() {
-      if (this.routeData && this.routeData.pathData) {
+      if (this.isCalculationComplete && this.routeData && this.routeData.pathData) {
         this.drawRoute(this.routeData.pathData);
-        const roundedDuration = Math.round(this.routeData.duration); // 对时间进行四舍五入
-        this.calculatedRoute = `路线绘制完成，预计时间：${roundedDuration} 分钟`; // 更新显示信息
-      } else {
-        this.calcError = '没有可用的路线数据。';
+        const roundedDuration = Math.round(this.routeData.duration);
+        this.calculatedRoute = `路线绘制完成，预计时间：${roundedDuration} 分钟`;
       }
     },
+
     drawRoute(pathData) {
       if (this.polyline) {
         this.polyline.setMap(null);
@@ -323,5 +340,9 @@ button:hover {
   color: red;
   font-weight: bold;
   font-size: 12px;
+}
+.loading {
+  color: orange; /* 加载提示的颜色 */
+  font-weight: bold;
 }
 </style>
