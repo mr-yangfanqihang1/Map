@@ -46,8 +46,8 @@ public class RouteServiceImpl implements RouteService {
         // 1. 先查询数据库中的路径
         Route existingRoute = routeMapper.findPathByStartAndEnd(route.getStartId(), route.getEndId());
         if (existingRoute != null) {
-            System.out.println("Found existing route in database.");
-            return existingRoute; // 如果数据库中有，直接返回
+           System.out.println("Found existing route in database.");
+           return existingRoute; // 如果数据库中有，直接返回
         }
 
         // 2. 调整动态优先级
@@ -64,17 +64,18 @@ public class RouteServiceImpl implements RouteService {
         System.out.println("End Road: " + endRoad.toString());
 
         // 3. 使用用户权重执行 A* 算法计算新路径
-        Route newRoute = aStarSearch(startRoad, endRoad, weights);
-
+     //   Route newRoute = aStarSearch(startRoad, endRoad, weights);
+       return aStarSearch(startRoad, endRoad, weights);
         // 4. 将新路径存入数据库
-        if (newRoute != null) {
-            newRoute.setStartId(route.getStartId());
-            newRoute.setEndId(route.getEndId());
-            routeMapper.insertRoute(newRoute); // 存入数据库
-            System.out.println("New route inserted into database.");
-        }
-
-        return newRoute;
+//       if (newRoute != null) {
+//            newRoute.setUserId(route.getUserId());
+//            newRoute.setStartId(route.getStartId());
+//            newRoute.setEndId(route.getEndId());
+//            routeMapper.insertRoute(newRoute); // 存入数据库
+//            System.out.println("New route inserted into database.");
+//        }
+//
+//        return newRoute;
     }
 
 

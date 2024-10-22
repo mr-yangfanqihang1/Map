@@ -14,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 @Mapper
 public interface RouteMapper {
 
+    // 插入新路径
     @Insert("INSERT INTO routes (user_id, start_pointname, end_pointname, distance, duration, path_data, timestamp) " +
             "VALUES (#{userId}, #{startPoint}, #{endPoint}, #{distance}, #{duration}, #{pathData, typeHandler=com.server.server.handler.JsonTypeHandler}, #{timestamp})")
     void insertRoute(Route route);
@@ -33,8 +34,9 @@ public interface RouteMapper {
     @Select("SELECT COUNT(*) FROM routes")
     ArrayList<PathData> getPathData();
 
-    // 通过起点和终点查询路径
-    Route findPathByStartAndEnd(@Param("startId") Long startId, @Param("endId") Long endId);
+    // 通过注解方式定义 SQL
+   @Select("SELECT * FROM routes WHERE start_id = #{start_id} AND end_id = #{end_id}")
+    Route findPathByStartAndEnd(long start_id,long end_id);
 
 }
 
