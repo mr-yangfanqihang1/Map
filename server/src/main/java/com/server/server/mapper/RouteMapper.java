@@ -9,7 +9,6 @@ import org.apache.ibatis.annotations.Select;
 
 import com.server.server.data.Road;
 import com.server.server.data.Route;
-import org.springframework.data.repository.query.Param;
 
 @Mapper
 public interface RouteMapper {
