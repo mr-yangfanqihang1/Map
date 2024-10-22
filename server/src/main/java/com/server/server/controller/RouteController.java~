@@ -5,8 +5,6 @@ import java.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,7 +31,7 @@ public class RouteController {
     private static final Logger logger = LoggerFactory.getLogger(RouteController.class);
 
     @PostMapping("/calculate")
-    public ResponseEntity<?> calculateRoute(@RequestBody Route route) {
+    public Route calculateRoute(@RequestBody Route route) {
         // 在接收到前端数据时打印 Route 信息
         logger.info("Received route data: " + route.toString());
         System.out.println("Received route data: " + route.toString());
@@ -42,24 +40,15 @@ public class RouteController {
         User user = userService.getUserById(route.getUserId());
 
         if (user == null) {
-            // 返回 404 状态和错误消息
-            logger.error("用户不存在: " + route.getUserId());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("用户不存在");
+            throw new RuntimeException("用户不存在");
         }
 
         // 设置请求时间和初始优先级
         route.setRequestTime(LocalDateTime.now());
         route.setPriority(route.getPriority());  // 假设用户有一个初始优先级
 
-        try {
-            // 调用 RouteService 计算路径
-            Route calculatedRoute = routeService.calculateRoute(route);
-            return ResponseEntity.ok(calculatedRoute);
-        } catch (RuntimeException e) {
-            // 捕获计算路径时的异常并返回 404 状态和错误消息
-            logger.error("计算路径失败: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        }
+        // 调用 RouteService 计算路径
+        return routeService.calculateRoute(route);
     }
 
     @GetMapping("/{id}")
@@ -71,6 +60,7 @@ public class RouteController {
     public void createRoute(@RequestBody Route route) {
         // 打印收到的创建路径的数据
         logger.info("Creating route with data: " + route.toString());
+
         routeService.createRoute(route);
     }
 }

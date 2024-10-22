@@ -36,7 +36,7 @@ public interface RouteMapper {
 
     // 通过注解方式定义 SQL
    @Select("SELECT * FROM routes WHERE start_id = #{start_id} AND end_id = #{end_id}")
-    Route findPathByStartAndEnd(long start_id,long end_id);
+   Route findPathByStartAndEnd(long start_id,long end_id);
 
 }
 
