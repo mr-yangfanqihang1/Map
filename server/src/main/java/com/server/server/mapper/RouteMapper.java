@@ -29,10 +29,12 @@ public interface RouteMapper {
     @Select("SELECT * FROM roads WHERE FIND_IN_SET(id, (SELECT next_roadid FROM roads WHERE id = #{roadId}))")
     List<Road> getNeighbors(long roadId);
 
+
     @Select("SELECT COUNT(*) FROM routes")
     ArrayList<PathData> getPathData();
 
     // 通过起点和终点查询路径
     Route findPathByStartAndEnd(@Param("startId") Long startId, @Param("endId") Long endId);
+
 }
 

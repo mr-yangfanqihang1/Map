@@ -2,7 +2,6 @@ package com.server.server.service;
 
 import com.server.server.data.*;
 import com.server.server.mapper.RoadMapper;
-import com.server.server.mapper.RouteMapper;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.*;
@@ -60,69 +59,42 @@ public class IntersectionService extends ResourceManager {
 }
 
 class ResourceManager {
-    public RoadMapper data;
-    public RouteMapper mapper;
-    private int maxLoad = data.getMaxload();
+    public RoadMapper roadMapper;
+    public List<Road> roads = roadMapper.getAllRoads();
+
+    private int maxDemand;
     private int available;
     private final Lock lock = new ReentrantLock();
     private final Condition condition = lock.newCondition();
-    private final Map<Object, RouteData> routeDataMap = new HashMap<Object, RouteData>();
-    ArrayList<com.server.server.data.PathData> pathdata = mapper.getPathData();
-    //double routeData = data.getrouteData();
-    private final Map<Object, Integer> allocation = new HashMap<Object, Integer>();
-
-
-    public ResourceManager(int maxLoad) {
-        this.maxLoad = maxLoad;
-        this.available = maxLoad;
-    }
+    private final Map<Object, Integer> allocation = new HashMap<>();
 
     public ResourceManager() {
-        this.maxLoad = maxLoad;
-        this.available = maxLoad;
+        this.roadMapper = roadMapper;
+        this.roads = roadMapper.getAllRoads();
+        this.maxDemand = maxDemand;
+        this.available = maxDemand;
     }
 
-    public void registerEntity(Object entity, RouteData routeData) {
+    public void registerEntity(Object entity) {
         lock.lock();
         try {
-            this.routeDataMap.put(entity, routeData);
-            this.allocation.put(entity, 0);
+            allocation.put(entity, 0);
         } finally {
             lock.unlock();
         }
     }
 
-    public void requestResources(Object entity, List<RouteData> routeData) throws InterruptedException {
+    public void requestResources(Object entity, List<RouteData> pathData) throws InterruptedException {
         lock.lock();
         try {
-            RouteData currentRouteData = routeDataMap.get(entity);
-            if (currentRouteData == null) {
-                throw new IllegalStateException("Entity not registered.");
-            }
-            while (routeData.size() > available) {
+            while (pathData.size() > available) {
                 condition.await();
             }
-            int totalNeeded = routeData.size();
+            int totalNeeded = pathData.size();
             int allocated = Math.min(totalNeeded, available);
-            this.allocation.put(entity, this.allocation.get(entity) + allocated);
+            allocation.put(entity, allocation.getOrDefault(entity, 0) + allocated);
             this.available -= allocated;
             if (allocated < totalNeeded) {
-                condition.await();
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    public void releaseResources(Object entity, List<RouteData> routeData) {
-        lock.lock();
-        try {
-            int totalReleased = routeData.size();
-            int currentAllocation = this.allocation.get(entity);
-            int newAllocation = currentAllocation - totalReleased;
-            this.allocation.put(entity, newAllocation);
-            this.available += totalReleased;
-            if (newAllocation > 0) {
                 condition.signalAll();
             }
         } finally {
@@ -130,13 +102,27 @@ class ResourceManager {
         }
     }
 
+    public void releaseResources(Object entity, List<RouteData> pathData) {
+        lock.lock();
+        try {
+            int totalReleased = pathData.size();
+            int currentAllocation = allocation.get(entity) - totalReleased;
+            allocation.put(entity, currentAllocation);
+            this.available += totalReleased;
+            if (currentAllocation > 0) {
+                condition.signalAll();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
 
     protected void printState() {
         System.out.println("ResourceManager state:");
         System.out.println("Available: " + available);
-        System.out.println("RouteDataMap: " + routeDataMap);
         System.out.println("Allocation: " + allocation);
     }
+}
 
 
     abstract class SimulationThread extends Thread {
@@ -161,13 +147,13 @@ class ResourceManager {
         public void run() {
             // Business logic for vehicle simulation
             // 1. 从roadMapper data中读取道路资源
-            List<Road> roads = resourceManager.data.getAllRoads();
+            List<Road> roads = resourceManager.roadMapper.getAllRoads();
 
             // 2. 模拟车辆消耗资源
             List<Road> validRoads = new ArrayList<>(); // 用于存储符合if条件的道路
             for (Road road : roads) {
                 long id = road.getId();
-                if (resourceManager.data.getRoadById(id).maxLoad >= maxDemand) {
+                if (resourceManager.roadMapper.getRoadById(id).maxLoad >= maxDemand) {
                     // 模拟车辆使用该道路资源
                     try {
                         resourceManager.requestResources(this, Collections.singletonList
@@ -191,7 +177,7 @@ class ResourceManager {
             // 重新遍历符合条件的道路
             for (Road road : validRoads) {
                 long id = road.getId();
-                if (resourceManager.data.getRoadById(id).maxLoad >= maxDemand) {
+                if (resourceManager.roadMapper.getRoadById(id).maxLoad >= maxDemand) {
                     // 模拟车辆使用该道路资源
                     try {
                         resourceManager.requestResources(this, Collections.singletonList
@@ -229,7 +215,7 @@ class ResourceManager {
         public void run() {
             // Business logic for philosopher simulation
             // 1. 从roadMapper data中读取道路资源
-            List<Road> roads = resourceManager.data.getAllRoads();
+            List<Road> roads = resourceManager.roadMapper.getAllRoads();
 
             // 2. 模拟哲学家使用资源
             List<Road> relevantRoads = new ArrayList<>();
@@ -267,4 +253,3 @@ class ResourceManager {
         }
 
     }
-}
