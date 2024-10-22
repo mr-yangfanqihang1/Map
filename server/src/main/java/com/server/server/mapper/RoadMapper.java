@@ -16,9 +16,15 @@ public interface RoadMapper {
     @Select("SELECT * FROM roads WHERE id = #{id}")
     Road getRoadById(long id);
 
+    // 根据道路名称查询道路信息
+    @Select("SELECT * FROM roads WHERE name = #{name}")
+    Road findByName(String name);
+
+
     // 查询所有道路信息
     @Select("SELECT * FROM roads")
     List<Road> getAllRoads();
+
 
     // 根据道路 ID 查询道路的最大负载
     @Select("SELECT max_load FROM roads WHERE id = #{id}")
@@ -37,4 +43,7 @@ public interface RoadMapper {
     // 更新下一道路 ID
     @Update("UPDATE roads SET next_roadid = #{nextRoadId} WHERE id = #{id}")
     void updateNextRoadId(long id, String nextRoadId);
+
+
+
 }

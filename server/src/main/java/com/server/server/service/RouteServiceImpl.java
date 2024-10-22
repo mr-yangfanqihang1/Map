@@ -65,7 +65,7 @@ public class RouteServiceImpl implements RouteService {
         adjustDynamicPriority(route);
 
         // 打印 route 数据，调试用
-        System.out.println("Calculating route for: " + route.toString());
+        System.out.println("Calculating new route for: " + route.toString());
         Map<String, Double> weights = getUserWeights(userService.getPreferences(route.getUserId()));
         // 根据优先级将请求放入对应的优先级队列
         addToPriorityQueue(route);
@@ -110,8 +110,18 @@ public class RouteServiceImpl implements RouteService {
         System.out.println("Start Road: " + startRoad.toString());
         System.out.println("End Road: " + endRoad.toString());
 
-        // 使用用户权重执行 A* 算法
-        return aStarSearch(startRoad, endRoad, weights);
+        // 3. 使用用户权重执行 A* 算法计算新路径
+        Route newRoute = aStarSearch(startRoad, endRoad, weights);
+
+        // 4. 将新路径存入数据库
+        if (newRoute != null) {
+            newRoute.setStartId(route.getStartId());
+            newRoute.setEndId(route.getEndId());
+            routeMapper.insertRoute(newRoute); // 存入数据库
+            System.out.println("New route inserted into database.");
+        }
+
+        return newRoute;
     }
     private void adjustDynamicPriority(Route route) {
         LocalDateTime now = LocalDateTime.now();
