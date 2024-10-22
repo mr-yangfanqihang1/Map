@@ -2,14 +2,14 @@ package com.server.server.mapper;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.server.server.data.PathData;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
+import com.server.server.data.PathData;
 import com.server.server.data.Road;
 import com.server.server.data.Route;
-import org.springframework.data.repository.query.Param;
 
 @Mapper
 public interface RouteMapper {
@@ -37,6 +37,12 @@ public interface RouteMapper {
     // 通过注解方式定义 SQL
    @Select("SELECT * FROM routes WHERE start_id = #{start_id} AND end_id = #{end_id}")
    Route findPathByStartAndEnd(long start_id,long end_id);
+
+   @Update("UPDATE route SET  WHERE id = #{userid}")
+   void updateRoute(Route route);
+
+
+
 
 }
 
