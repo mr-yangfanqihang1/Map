@@ -1,13 +1,13 @@
 package com.server.server.service;
-import com.server.server.data.*;
-import com.server.server.mapper.*;
+import java.util.Set;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Set;
+import com.server.server.data.User;
+import com.server.server.mapper.UserMapper;
 
     @Service
 public class UserService {
@@ -21,7 +21,14 @@ public class UserService {
         this.redisTemplate = redisTemplate;
         this.valueOps = redisTemplate.opsForValue();
     }
-
+    public int getPriority(int userId) {
+        String key = "userData:userId:" + userId;
+        User user = (User) redisTemplate.opsForValue().get(key);
+        if (user == null) {
+            return (0);
+        }
+        return user.getPriority();
+    }
     // 从 Redis 中获取用户的偏好
     public String getPreferences(int userId) {
         String key = "userData:userId:" + userId;
