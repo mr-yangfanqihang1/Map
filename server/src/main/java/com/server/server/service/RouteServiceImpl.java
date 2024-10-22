@@ -5,12 +5,16 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +32,9 @@ public class RouteServiceImpl implements RouteService {
     private RoadService roadService;
     @Autowired
     private UserService userService;
-
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
+    private static final String REDIS_ROUTE_PREFIX = "route:";
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -40,6 +46,68 @@ public class RouteServiceImpl implements RouteService {
     public Route getRouteById(int id) {
         return routeMapper.getRouteById(id);
     }
+    private static final int PRIORITY_LEVELS = 5; // 定义 5 个优先级队列
+    private final List<Queue<Route>> priorityQueues = new ArrayList<>(PRIORITY_LEVELS);
+
+// 初始化多个优先级队列
+    public RouteServiceImpl() {
+        for (int i = 0; i < PRIORITY_LEVELS; i++) {
+        priorityQueues.add(new LinkedList<>());
+        }
+    }
+    private void adjustDynamicPriority(Route route) {
+        LocalDateTime now = LocalDateTime.now();
+        long waitingTime = Duration.between(route.getRequestTime(), now).toMinutes();
+    
+        // 根据等待时间动态调整优先级，每等待30秒，优先级提升 1 级
+        int additionalPriority = (int) (waitingTime / 0.5); 
+    
+        System.out.println("Adjusting priority for route. Original priority: " 
+            + route.getPriority() + ", Additional priority: " + additionalPriority);
+    
+        // 确保优先级始终在合法范围内，防止超出边界
+        int newPriority = Math.min(PRIORITY_LEVELS - 1, Math.max(0, route.getPriority() - additionalPriority));
+        route.setPriority(newPriority);
+    }
+    private void addToPriorityQueue(Route route) {
+        int priority = Math.min(route.getPriority(), PRIORITY_LEVELS - 1); // 确保优先级不超过最大值
+        System.out.println("Adding route to priority queue: Priority " + priority);
+        priorityQueues.get(priority).offer(route); // 将请求添加到对应的优先级队列中
+    }
+    public void scheduleRoutes() {
+        int timeSlice = 1000; // 每个优先级的时间片，单位为毫秒
+        boolean hasProcessed = false; 
+    
+        for (int i = 0; i < PRIORITY_LEVELS; i++) {
+            Queue<Route> currentQueue = priorityQueues.get(i);
+    
+            if (!currentQueue.isEmpty()) {
+                Route route = currentQueue.poll();  
+                Route calculatedRoute = calculateRoute(route);
+    
+                if (calculatedRoute != null) {
+                    routeMapper.updateRoute(calculatedRoute);
+                }
+    
+                hasProcessed = true; 
+                
+                try {
+                    Thread.sleep(timeSlice);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    
+        if (!hasProcessed) {
+            System.out.println("No routes to process.");
+        }
+    }
+    @Scheduled(fixedDelay = 1000)  // 每 3 秒执行一次调度
+    public void runScheduler() {
+    System.out.println("Running route scheduling...");
+    scheduleRoutes();
+    }
 
     @Override
     public Route calculateRoute(Route route) {
@@ -48,22 +116,23 @@ public class RouteServiceImpl implements RouteService {
             System.out.println("Found existing route in database.");
             return existingRoute; // 如果数据库中有，直接返回
         }
-        // 调整动态优先级
-        adjustDynamicPriority(route);
+                // 调整动态优先级
+                adjustDynamicPriority(route);
 
 
+        
         // 打印 route 数据，调试用
-        System.out.println("Calculating route for: " + route.toString());
+        //System.out.println("Calculating route for: " + route.toString());
         Map<String, Double> weights = getUserWeights(userService.getPreferences(route.getUserId()));
 
         // 从redis获取起始和结束 Road
         Road startRoad = roadService.getRoadById(route.getStartId());
         Road endRoad = roadService.getRoadById(route.getEndId());
-        System.out.println("Start Road: " + startRoad.toString());
-        System.out.println("End Road: " + endRoad.toString());
+        //System.out.println("Start Road: " + startRoad.toString());
+        //System.out.println("End Road: " + endRoad.toString());
 
         // 使用用户权重执行 A* 算法
-        Route calculatedRoute = aStarSearch(startRoad, endRoad, weights);
+        Route calculatedRoute = aStarSearch(startRoad, endRoad, weights,route);
 
         if (calculatedRoute == null) {
             System.out.println("未找到路径。");
@@ -74,16 +143,7 @@ public class RouteServiceImpl implements RouteService {
         return calculatedRoute;
     }
 
-    private void adjustDynamicPriority(Route route) {
-        LocalDateTime now = LocalDateTime.now();
-        long waitingTime = Duration.between(route.getRequestTime(), now).toMinutes();
-        int additionalPriority = (int) (waitingTime / 0.5);
-
-        System.out.println("Adjusting priority for route. Original priority: "
-                + route.getPriority() + ", Additional priority: " + additionalPriority);
-
-        route.setPriority(route.getPriority() + additionalPriority);
-    }
+    
 
     @SuppressWarnings("unchecked")
     private Map<String, Double> getUserWeights(String preferencesJson) {
@@ -95,28 +155,59 @@ public class RouteServiceImpl implements RouteService {
             throw new RuntimeException("解析用户权重失败", e);
         }
     }
+    private void saveStateToRedis(String userId, PriorityQueue<Node> openList, Set<Road> closedList, Node currentNode) {
+        try {
+            // 序列化并存储 openList 和 closedList
+            redisTemplate.opsForHash().put(REDIS_ROUTE_PREFIX + userId, "openList", objectMapper.writeValueAsString(openList));
+            redisTemplate.opsForHash().put(REDIS_ROUTE_PREFIX + userId, "closedList", objectMapper.writeValueAsString(closedList));
+            redisTemplate.opsForHash().put(REDIS_ROUTE_PREFIX + userId, "currentNode", objectMapper.writeValueAsString(currentNode));
+            System.out.println("Successfully saved A* state to Redis for user: " + userId);
+        } catch (Exception e) {
+            System.out.println("Error saving A* state to Redis: " + e.getMessage());
+        }
+    }
+    
+    // 从Redis恢复A*算法的状态
+    private boolean restoreStateFromRedis(String userId, PriorityQueue<Node> openList, Set<Road> closedList) {
+        try {
+            // 从Redis获取存储的 openList 和 closedList
+            String openListJson = (String) redisTemplate.opsForHash().get(REDIS_ROUTE_PREFIX + userId, "openList");
+            String closedListJson = (String) redisTemplate.opsForHash().get(REDIS_ROUTE_PREFIX + userId, "closedList");
+            String currentNodeJson = (String) redisTemplate.opsForHash().get(REDIS_ROUTE_PREFIX + userId, "currentNode");
+    
+            if (openListJson != null && closedListJson != null && currentNodeJson != null) {
+                openList.addAll(objectMapper.readValue(openListJson, objectMapper.getTypeFactory().constructCollectionType(PriorityQueue.class, Node.class)));
+                closedList.addAll(objectMapper.readValue(closedListJson, objectMapper.getTypeFactory().constructCollectionType(Set.class, Road.class)));
+                Node currentNode = objectMapper.readValue(currentNodeJson, Node.class);
+                System.out.println("Successfully restored A* state from Redis for user: " + userId);
+                return true;
+            }
+        } catch (Exception e) {
+            System.out.println("Error restoring A* state from Redis: " + e.getMessage());
+        }
+        return false;
+    }
 
-    private Route aStarSearch(Road startRoad, Road endRoad, Map<String, Double> weights) {
+    private Route aStarSearch(Road startRoad, Road endRoad, Map<String, Double> weights, Route route) {
         List<RouteData> pathData = new ArrayList<>(); // 用于存储结果路径数据
-
-        // 初始化开放列表和关闭列表
+        
         PriorityQueue<Node> openList = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
-        Set<Road> closedList = new HashSet<>();  // 仅存储 Road 而不是 Node
-
-        // 初始化起点节点
-        Node startNode = new Node(startRoad, null, 0, heuristic(startRoad, endRoad));
-        openList.add(startNode);
-
-        System.out.println("开始 A* 搜索。起点节点: " + startNode.getRoad().getName());
-
+        Set<Road> closedList = new HashSet<>();
+        
+        // 从Redis恢复上次中断的状态
+        if (!restoreStateFromRedis(String.valueOf(route.getUserId()), openList, closedList)) {
+            // 如果没有中断点，初始化开放和关闭列表
+            Node startNode = new Node(startRoad, null, 0, heuristic(startRoad, endRoad));
+            openList.add(startNode);
+        }
         // A* 主循环
         while (!openList.isEmpty()) {
             Node currentNode = openList.poll();  // 取出优先队列中的节点
-            System.out.println("当前节点: " + currentNode.getRoad().getName());
+            //System.out.println("当前节点: " + currentNode.getRoad().getName());
 
             // 如果到达终点，构建路径
             if (isGoal(currentNode, endRoad)) {
-                System.out.println("找到目标节点: " + currentNode.getRoad().getName());
+                //System.out.println("找到目标节点: " + currentNode.getRoad().getName());
                 return constructRoute(currentNode, pathData);  // 构建路径
             }
 
@@ -127,12 +218,12 @@ public class RouteServiceImpl implements RouteService {
             for (Road neighbor : getNeighbors(currentNode.getRoad())) {
                 // 如果邻居节点在关闭列表中，跳过它
                 if (closedList.contains(neighbor)) {
-                    System.out.println("邻居已在关闭列表中: " + neighbor.getName());
+                   // System.out.println("邻居已在关闭列表中: " + neighbor.getName());
                     continue;
                 }
 
                 // 检查邻居节点的 duration 值是否正确
-                System.out.println("邻居道路: " + neighbor.getName() + ", 距离: " + neighbor.getDistance() + ", 时长: " + neighbor.getDuration());
+                //System.out.println("邻居道路: " + neighbor.getName() + ", 距离: " + neighbor.getDistance() + ", 时长: " + neighbor.getDuration());
 
                 double cost = getCost(neighbor, weights);
                 Node neighborNode = new Node(neighbor, currentNode, currentNode.getG() + cost, 0);
@@ -141,25 +232,32 @@ public class RouteServiceImpl implements RouteService {
                 // 如果邻居不在开放列表中，或者发现一个更优路径，添加到开放列表
                 if (!openList.contains(neighborNode)) {
                     openList.add(neighborNode);
-                    System.out.println("将邻居添加到开放列表: " + neighbor.getName());
+                   // System.out.println("将邻居添加到开放列表: " + neighbor.getName());
                 } else {
                     // 更新现有邻居节点的优先级（如果有更优的路径）
                     for (Node openNode : openList) {
                         if (openNode.getRoad().equals(neighbor) && neighborNode.getG() < openNode.getG()) {
                             openList.remove(openNode);  // 移除旧的节点
                             openList.add(neighborNode);  // 添加新的更优节点
-                            System.out.println("更新开放列表中的邻居: " + neighbor.getName());
+                            //System.out.println("更新开放列表中的邻居: " + neighbor.getName());
                             break;
                         }
                     }
                 }
+            }
+            if (shouldPause()) {
+                saveStateToRedis(String.valueOf(route.getUserId()), openList, closedList, currentNode);
+                return null; // 暂时中断
             }
         }
 
         System.out.println("未找到路径。");
         return null; // 如果未找到路径
     }
-
+    private boolean shouldPause() {
+        // 可以根据实际时间、轮转调度时间片等条件判断
+        return System.currentTimeMillis() % 10000 == 0; 
+    }
 
     private double getCost(Road road, Map<String, Double> weights) {
         // 根据 Road 属性计算代价（距离、时间、价格等）
@@ -175,20 +273,20 @@ public class RouteServiceImpl implements RouteService {
                 weightDuration * normalizedDuration +
                 weightPrice * normalizedPrice;
 
-        System.out.println("Cost for road " + road.getName() + ": " + cost);
+        //System.out.println("Cost for road " + road.getName() + ": " + cost);
         return cost;
     }
 
     private boolean isGoal(Node currentNode, Road endRoad) {
         boolean isGoal = currentNode.getRoad().equals(endRoad);
         if (isGoal) {
-            System.out.println("Goal node reached: " + currentNode.getRoad().getName());
+           // System.out.println("Goal node reached: " + currentNode.getRoad().getName());
         }
         return isGoal;
     }
 
     private Route constructRoute(Node node, List<RouteData> pathData) {
-        System.out.println("Constructing route from goal to start...");
+        //System.out.println("Constructing route from goal to start...");
 
         double totalDistance = 0;
         double totalDuration = 0;
@@ -214,9 +312,9 @@ public class RouteServiceImpl implements RouteService {
             node = node.getParent(); // 移动到父节点
         }
 
-        System.out.println("Total distance: " + totalDistance);
-        System.out.println("Total duration: " + totalDuration);
-        System.out.println("Total price: " + totalPrice);
+        //System.out.println("Total distance: " + totalDistance);
+        //System.out.println("Total duration: " + totalDuration);
+        //System.out.println("Total price: " + totalPrice);
 
         Route resultRoute = new Route();
         resultRoute.setPathData(pathData); // 设置路径数据
@@ -228,14 +326,14 @@ public class RouteServiceImpl implements RouteService {
     }
 
     private List<Road> getNeighbors(Road currentRoad) {
-        System.out.println("Getting neighbors for road: " + currentRoad.getName());
+       // System.out.println("Getting neighbors for road: " + currentRoad.getName());
         return roadService.getNeighbors(currentRoad.getId()); // 假设方法返回相邻道路的列表
     }
-
     private double heuristic(Road currentRoad, Road endRoad) {
-        // 可以实现基于距离的启发式估算
-        double heuristicValue = 0; // 简单的启发式函数可以改进
-        System.out.println("Heuristic value for road " + currentRoad.getName() + " to " + endRoad.getName() + ": " + heuristicValue);
+        double deltaX = Math.abs(currentRoad.getStartLat() - endRoad.getStartLat());
+        double deltaY = Math.abs(currentRoad.getStartLong() - endRoad.getStartLong());
+        double heuristicValue = deltaX + deltaY;
+       // System.out.println("Heuristic value for road " + currentRoad.getName() + " to " + endRoad.getName() + ": " + heuristicValue);
         return heuristicValue;
     }
 

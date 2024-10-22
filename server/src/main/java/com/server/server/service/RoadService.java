@@ -1,16 +1,18 @@
 package com.server.server.service;
 
-import com.server.server.data.Road;
-import com.server.server.mapper.RoadMapper;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.stereotype.Service;
-import org.springframework.data.redis.core.Cursor;
-import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.ScanOptions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.stereotype.Service;
+
+import com.server.server.data.Road;
+import com.server.server.mapper.RoadMapper;
 
 @Service
 public class RoadService {
@@ -102,10 +104,10 @@ public class RoadService {
         String key = "roadData:roadId:" + id;
         Road road = (Road) valueOps.get(key);
         if (road != null) {
-            System.out.println("Get road data from Redis: roadId: " + id);
+           // System.out.println("Get road data from Redis: roadId: " + id);
             return road;
         } else {
-            System.out.println("Road data not found in Redis for roadId: " + id);
+            //System.out.println("Road data not found in Redis for roadId: " + id);
             // 如果 Redis 中没有，则从数据库查询并缓存
             road = roadMapper.getRoadById(id);
             if (road != null) {
@@ -121,10 +123,10 @@ public class RoadService {
         Road road = (Road) valueOps.get(key);  // 从 Redis 获取 road 对象
         try {
             if (road != null) {
-                System.out.println("Get road data from Redis: roadId: " + id);
+                //System.out.println("Get road data from Redis: roadId: " + id);
                 return getNeighborsByRoad(road);
             } else {
-                System.out.println("Road data not found in Redis for roadId: " + id);
+                //System.out.println("Road data not found in Redis for roadId: " + id);
                 // 如果 Redis 中没有数据，从数据库中查询 Road 对象
                 Road dbRoad = getRoadById(id);
                 if (dbRoad != null) {

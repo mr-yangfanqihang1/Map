@@ -1,5 +1,11 @@
 <template>
   <div class="container">
+    <!-- 返回地图按钮，位于右上角 -->
+    <div class="return-map">
+      <router-link :to="`/${user.id}`">
+        <el-button type="primary">返回地图</el-button>
+      </router-link>
+    </div>
     <!-- 左侧表格 -->
     <div class="form-section">
       <el-form :model="user" label-width="100px">

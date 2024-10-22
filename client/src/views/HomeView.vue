@@ -1,6 +1,13 @@
 <template>
   <div id="map-container">
     <div id="container"></div>
+    <!-- 个人中心按钮，位于右上角 -->
+    <div class="user-profile">
+      <router-link :to="`/user/${calculateInput.userId}`">
+        <button>个人中心</button>
+      </router-link>
+    </div>
+
 
     <!-- 路线管理部分，左上角展示已计算的路线信息 -->
     <div class="route-management">
@@ -9,7 +16,9 @@
         <!-- 用户 ID 输入框 -->
         <input
             v-model="calculateInput.userId"
+            disabled
             placeholder="User ID"
+            :readonly="isUserIdReadonly"
             required
         />
 
@@ -50,9 +59,13 @@
             {{ suggestion.name }}
           </li>
         </ul>
+      </form>
 
+      <form @submit.prevent="outputAndDrawRoute">
+        <!-- 其他输入框保持不变 -->
         <button type="submit">Calculate Route</button>
       </form>
+
 
       <!-- 显示路线绘制完成的提示 -->
       <p v-if="calculatedRoute" class="calculated-info">{{ calculatedRoute }}</p>
@@ -81,14 +94,25 @@ export default {
       endSuggestions: [],
       calculatedRoute: '',
       calcError: '',
+      routeData: null,       // 用于存储计算后的路线数据
+      isUserIdReadonly: false,
       map: null,
       polyline: null,
     };
   },
   mounted() {
     this.initMap();
+    this.setUserIdFromUrl(); // 设置用户 ID
   },
   methods: {
+    setUserIdFromUrl() {
+      const url = window.location.href;
+      const match = url.match(/\/(\d+)$/); // 匹配最后的数字 ID
+      if (match) {
+        this.calculateInput.userId = match[1]; // 将 ID 填入 userId 输入框
+        this.isUserIdReadonly = true; // 将输入框设为只读
+      }
+    },
     initMap() {
       const script = document.createElement('script');
       script.src = 'https://webapi.amap.com/maps?v=1.4.15&key=73f31edb64d7baefbc909c8bac5b839f';
@@ -138,32 +162,41 @@ export default {
       this.calculateInput.startId = suggestion.id;  // 将 ID 存储到隐形输入框
       this.startInput = suggestion.name;              // 将名称填入可见输入框
       this.startSuggestions = [];  // 清空建议列表
+
     },
     selectEndPoint(suggestion) {
       this.calculateInput.endId = suggestion.id;  // 将 ID 存储到隐形输入框
       this.endInput = suggestion.name;              // 将名称填入可见输入框
       this.endSuggestions = [];  // 清空建议列表
+
+      // 选择终点后立即计算路线
+      this.calculateRoute();
     },
+    // 其他方法保持不变
     calculateRoute() {
       this.calcError = '';
       this.calculatedRoute = '';
 
-      // 调用后端计算路线并绘制路径
+      // 调用后端计算路线并将数据存储到 routeData 中
       axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput)
           .then(response => {
-            if (response.data.pathData) {
-              this.drawRoute(response.data.pathData);
-            }
-            this.calculatedRoute = '路线绘制完成';
-            // 重置输入框
-            this.calculateInput = { userId: '', startId: '', endId: '' };
-            this.startInput = '';
-            this.endInput = '';
+            // 存储路线数据
+            this.routeData = response.data;
           })
           .catch(error => {
             console.error('Error calculating route:', error.response ? error.response.data : error);
             this.calcError = '计算路线失败，请重试。';
           });
+    },
+    // 在点击按钮时输出结果和绘制线条
+    outputAndDrawRoute() {
+      if (this.routeData && this.routeData.pathData) {
+        this.drawRoute(this.routeData.pathData);
+        const roundedDuration = Math.round(this.routeData.duration); // 对时间进行四舍五入
+        this.calculatedRoute = `路线绘制完成，预计时间：${roundedDuration} 分钟`; // 更新显示信息
+      } else {
+        this.calcError = '没有可用的路线数据。';
+      }
     },
     drawRoute(pathData) {
       if (this.polyline) {
@@ -214,6 +247,28 @@ export default {
   z-index: 1000;
   font-size: 12px;
   width: 260px;
+}
+
+/* 个人中心按钮样式 */
+.user-profile {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+}
+
+.user-profile button {
+  padding: 6px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.user-profile button:hover {
+  background-color: #0056b3;
 }
 
 input {
