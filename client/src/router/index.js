@@ -10,6 +10,11 @@ const routes = [
     component: HomeView
   },
   {
+    path: '/',
+    redirect: '/1'
+
+  },
+  {
     path: '/about',
     name: 'about',
     // route level code-splitting

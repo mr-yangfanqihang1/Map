@@ -78,7 +78,7 @@ public class RouteServiceImpl implements RouteService {
     }
 
     public void scheduleRoutes() {
-        int timeSlice = 1000; // 每个优先级的时间片，单位为毫秒
+        int timeSlice = 1000000; // 每个优先级的时间片，单位为毫秒
         boolean hasProcessed = false; 
         
         for (int i = 0; i < PRIORITY_LEVELS; i++) {
@@ -107,7 +107,7 @@ public class RouteServiceImpl implements RouteService {
         }
     }
 
-    @Scheduled(fixedDelay = 1000)  // 每 3 秒执行一次调度
+    @Scheduled(fixedDelay = 1000000)  // 每 3 秒执行一次调度
     public void runScheduler() {
         System.out.println("Running route scheduling...");
         scheduleRoutes();
