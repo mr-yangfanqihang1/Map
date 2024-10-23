@@ -296,12 +296,34 @@ export default {
         }
       }, 1000); // Adjust speed here (in milliseconds)
     },
-    uploadTrafficData(segment) {
-      const trafficData = { /* construct your traffic data based on segment */ };
 
+    uploadTrafficData(segment) {
+      const trafficData = {
+        segmentId: segment.id, // Assuming each segment has an ID
+        startLong: segment.startLong,
+        startLat: segment.startLat,
+        endLong: segment.endLong,
+        endLat: segment.endLat,
+        currentStatus: this.getCurrentTrafficStatus(segment), // Function to determine current status
+        timestamp: new Date().toISOString(), // Current timestamp
+      };
+
+     // Send traffic data to backend
       axios.post('http://localhost:8080/api/traffic/upload', trafficData)
-          .then(response => console.log('Traffic data uploaded:', response))
-          .catch(error => console.error('Error uploading traffic data:', error));
+        .then(response => console.log('Traffic data uploaded:', response))
+        .catch(error => console.error('Error uploading traffic data:', error));
+    },
+
+    getCurrentTrafficStatus(segment) {
+      // Logic to determine current traffic status based on your criteria
+      // For example, you might have conditions based on speed or congestion level
+      if (segment.congestionLevel > 70) {
+        return 'red'; // High congestion
+      } else if (segment.congestionLevel > 30) {
+        return 'orange'; // Moderate congestion
+      } else {
+        return 'green'; // Low congestion
+      }
     },
 
     toggleRoadStatus() {
