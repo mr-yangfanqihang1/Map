@@ -36,59 +36,62 @@ public class RouteServiceImpl implements RouteService {
     private RedisTemplate<String, Object> redisTemplate;
     private static final String REDIS_ROUTE_PREFIX = "route:";
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private static final int PRIORITY_LEVELS = 5; // 定义 5 个优先级队列
+    private final List<Queue<Route>> priorityQueues = new ArrayList<>(PRIORITY_LEVELS);
+
+    // 初始化多个优先级队列
+    public RouteServiceImpl() {
+        for (int i = 0; i < PRIORITY_LEVELS; i++) {
+            priorityQueues.add(new LinkedList<>());
+        }
+    }
 
     @Override
     public void createRoute(Route route) {
         routeMapper.insertRoute(route);
+        addToPriorityQueue(route); // 将新创建的路线添加到优先级队列
     }
 
     @Override
     public Route getRouteById(int id) {
         return routeMapper.getRouteById(id);
     }
-    private static final int PRIORITY_LEVELS = 5; // 定义 5 个优先级队列
-    private final List<Queue<Route>> priorityQueues = new ArrayList<>(PRIORITY_LEVELS);
 
-// 初始化多个优先级队列
-    public RouteServiceImpl() {
-        for (int i = 0; i < PRIORITY_LEVELS; i++) {
-        priorityQueues.add(new LinkedList<>());
-        }
-    }
     private void adjustDynamicPriority(Route route) {
         LocalDateTime now = LocalDateTime.now();
         long waitingTime = Duration.between(route.getRequestTime(), now).toMinutes();
     
         // 根据等待时间动态调整优先级，每等待30秒，优先级提升 1 级
         int additionalPriority = (int) (waitingTime / 0.5); 
-    
         System.out.println("Adjusting priority for route. Original priority: " 
             + route.getPriority() + ", Additional priority: " + additionalPriority);
     
-        // 确保优先级始终在合法范围内，防止超出边界
+        // 确保优先级始终在合法范围内
         int newPriority = Math.min(PRIORITY_LEVELS - 1, Math.max(0, route.getPriority() - additionalPriority));
         route.setPriority(newPriority);
     }
+
     private void addToPriorityQueue(Route route) {
         int priority = Math.min(route.getPriority(), PRIORITY_LEVELS - 1); // 确保优先级不超过最大值
         System.out.println("Adding route to priority queue: Priority " + priority);
         priorityQueues.get(priority).offer(route); // 将请求添加到对应的优先级队列中
     }
+
     public void scheduleRoutes() {
         int timeSlice = 1000; // 每个优先级的时间片，单位为毫秒
         boolean hasProcessed = false; 
-    
+        
         for (int i = 0; i < PRIORITY_LEVELS; i++) {
             Queue<Route> currentQueue = priorityQueues.get(i);
     
             if (!currentQueue.isEmpty()) {
                 Route route = currentQueue.poll();  
-                Route calculatedRoute = calculateRoute(route);
-    
+                Route calculatedRoute = calculateRoute(route); // 计算路线并返回
+
                 if (calculatedRoute != null) {
                     routeMapper.updateRoute(calculatedRoute);
                 }
-    
+
                 hasProcessed = true; 
                 
                 try {
@@ -103,10 +106,11 @@ public class RouteServiceImpl implements RouteService {
             System.out.println("No routes to process.");
         }
     }
+
     @Scheduled(fixedDelay = 1000)  // 每 3 秒执行一次调度
     public void runScheduler() {
-    System.out.println("Running route scheduling...");
-    scheduleRoutes();
+        System.out.println("Running route scheduling...");
+        scheduleRoutes();
     }
 
     @Override
@@ -116,35 +120,29 @@ public class RouteServiceImpl implements RouteService {
             System.out.println("Found existing route in database.");
             return existingRoute; // 如果数据库中有，直接返回
         }
-                // 调整动态优先级
-                adjustDynamicPriority(route);
 
-
+        // 调整动态优先级
+        adjustDynamicPriority(route);
         
-        // 打印 route 数据，调试用
-        //System.out.println("Calculating route for: " + route.toString());
         Map<String, Double> weights = getUserWeights(userService.getPreferences(route.getUserId()));
 
         // 从redis获取起始和结束 Road
         Road startRoad = roadService.getRoadById(route.getStartId());
         Road endRoad = roadService.getRoadById(route.getEndId());
-        //System.out.println("Start Road: " + startRoad.toString());
-        //System.out.println("End Road: " + endRoad.toString());
 
         // 使用用户权重执行 A* 算法
-        Route calculatedRoute = aStarSearch(startRoad, endRoad, weights,route);
+        Route calculatedRoute = aStarSearch(startRoad, endRoad, weights, route);
 
         if (calculatedRoute == null) {
             System.out.println("未找到路径。");
-            // 返回适当的错误或自定义逻辑，您可以选择抛出异常或返回 null
             throw new RuntimeException("未找到路径，请检查起点和终点。");
         }
 
+        // 将计算的路线添加到优先级队列
+        addToPriorityQueue(calculatedRoute);
+
         return calculatedRoute;
     }
-
-    
-
     @SuppressWarnings("unchecked")
     private Map<String, Double> getUserWeights(String preferencesJson) {
         try {
@@ -256,7 +254,7 @@ public class RouteServiceImpl implements RouteService {
     }
     private boolean shouldPause() {
         // 可以根据实际时间、轮转调度时间片等条件判断
-        return System.currentTimeMillis() % 10000 == 0; 
+        return System.currentTimeMillis() % 100000 == 0; 
     }
 
     private double getCost(Road road, Map<String, Double> weights) {
@@ -273,7 +271,7 @@ public class RouteServiceImpl implements RouteService {
                 weightDuration * normalizedDuration +
                 weightPrice * normalizedPrice;
 
-        //System.out.println("Cost for road " + road.getName() + ": " + cost);
+        System.out.println("Cost for road " + road.getName() + ": " + cost);
         return cost;
     }
 
@@ -303,6 +301,7 @@ public class RouteServiceImpl implements RouteService {
             routeData.setDistance(road.getDistance());
             routeData.setDuration(road.getDuration());
             routeData.setPrice(road.getPrice());
+            routeData.setStatus(road.getStatus());
 
             totalDistance += road.getDistance();
             totalDuration += road.getDuration();
@@ -312,28 +311,30 @@ public class RouteServiceImpl implements RouteService {
             node = node.getParent(); // 移动到父节点
         }
 
-        //System.out.println("Total distance: " + totalDistance);
-        //System.out.println("Total duration: " + totalDuration);
-        //System.out.println("Total price: " + totalPrice);
+        System.out.println("Total distance: " + totalDistance);
+        System.out.println("Total duration: " + totalDuration);
+        System.out.println("Total price: " + totalPrice);
+        
 
         Route resultRoute = new Route();
         resultRoute.setPathData(pathData); // 设置路径数据
         resultRoute.setDistance(String.valueOf(totalDistance));
         resultRoute.setDuration(String.valueOf(totalDuration));
         resultRoute.setPrice(String.valueOf(totalPrice));
+        
 
         return resultRoute;
     }
 
     private List<Road> getNeighbors(Road currentRoad) {
-       // System.out.println("Getting neighbors for road: " + currentRoad.getName());
+        System.out.println("Getting neighbors for road: " + currentRoad.getName());
         return roadService.getNeighbors(currentRoad.getId()); // 假设方法返回相邻道路的列表
     }
     private double heuristic(Road currentRoad, Road endRoad) {
         double deltaX = Math.abs(currentRoad.getStartLat() - endRoad.getStartLat());
         double deltaY = Math.abs(currentRoad.getStartLong() - endRoad.getStartLong());
         double heuristicValue = deltaX + deltaY;
-       // System.out.println("Heuristic value for road " + currentRoad.getName() + " to " + endRoad.getName() + ": " + heuristicValue);
+        System.out.println("Heuristic value for road " + currentRoad.getName() + " to " + endRoad.getName() + ": " + heuristicValue);
         return heuristicValue;
     }
 

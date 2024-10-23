@@ -12,7 +12,8 @@ public class RouteData {
     private double endLong;
     private double distance;  // 距离
     private double duration;  // 时间
-    private double price;     // 价格
+    private double price;  
+    private String status;    // 价格
 
     public RouteData(double startLat, double startLong, double endLat, double endLong, double distance, double duration, double price) {
         this.startLat = startLat;
@@ -22,5 +23,7 @@ public class RouteData {
         this.distance = distance;
         this.duration = duration;
         this.price = price;
+        this.status=status;
+
     }
 }
