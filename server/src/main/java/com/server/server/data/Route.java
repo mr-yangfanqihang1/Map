@@ -11,9 +11,9 @@ public class Route {
     private int userId;
     private long startId;
     private long endId;
-    private String distance;
-    private String duration;
-    private String price;    // 新增价格字段
+    private double distance;
+    private double duration;
+    private double price;    // 新增价格字段
     private List<RouteData> pathData;  // 使用 RouteData 存储多个路径点
     private String timestamp;
     private int priority;             // 初始优先级
@@ -32,11 +32,10 @@ public class Route {
     public List<RouteData> getPathData() {
         return pathData;
     }
-
+    //objectMapper.writeValueAsString(pathData)
     public void setPathData(List<RouteData> pathData) {
         this.pathData = pathData;
     }
-
     public LocalDateTime getRequestTime() {
         return requestTime;
     }
@@ -53,11 +52,11 @@ public class Route {
         this.priority = priority;
     }
 
-    public String getDuration() {
+    public double getDuration() {
         return duration;
     }
 
-    public void setDuration(String duration) {
+    public void setDuration(double duration) {
         this.duration = duration;
     }
 }

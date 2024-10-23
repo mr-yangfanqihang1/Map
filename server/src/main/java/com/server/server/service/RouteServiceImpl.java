@@ -188,7 +188,6 @@ public class RouteServiceImpl implements RouteService {
 
     private Route aStarSearch(Road startRoad, Road endRoad, Map<String, Double> weights, Route route) {
         List<RouteData> pathData = new ArrayList<>(); // 用于存储结果路径数据
-        
         PriorityQueue<Node> openList = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
         Set<Road> closedList = new HashSet<>();
         
@@ -206,9 +205,9 @@ public class RouteServiceImpl implements RouteService {
             // 如果到达终点，构建路径
             if (isGoal(currentNode, endRoad)) {
                 //System.out.println("找到目标节点: " + currentNode.getRoad().getName());
-                return constructRoute(currentNode, pathData);  // 构建路径
+                return constructRoute(currentNode, pathData, route.getUserId(), route.getStartId(), route.getEndId());
             }
-
+           // Node node, List<RouteData> pathData, int userId, long startId, long endId, int weightDistance, double totalDuration, double totalDistance
             // 将当前节点加入关闭列表
             closedList.add(currentNode.getRoad());
 
@@ -254,7 +253,7 @@ public class RouteServiceImpl implements RouteService {
     }
     private boolean shouldPause() {
         // 可以根据实际时间、轮转调度时间片等条件判断
-        return System.currentTimeMillis() %1000000  == 0; 
+        return System.currentTimeMillis() % 1000000 == 0; 
     }
 
     private double getCost(Road road, Map<String, Double> weights) {
@@ -283,16 +282,13 @@ public class RouteServiceImpl implements RouteService {
         return isGoal;
     }
 
-    private Route constructRoute(Node node, List<RouteData> pathData) {
-        //System.out.println("Constructing route from goal to start...");
-
-        double totalDistance = 0;
-        double totalDuration = 0;
+    private Route constructRoute(Node node, List<RouteData> pathData, int userId, long startId, long endId) {
         double totalPrice = 0;
-
+        double totalDistance =0;
+        double totalDuration =0;
         while (node != null) {
             Road road = node.getRoad();
-
+    
             RouteData routeData = new RouteData();
             routeData.setStartLat(road.getStartLat());
             routeData.setStartLong(road.getStartLong());
@@ -302,29 +298,42 @@ public class RouteServiceImpl implements RouteService {
             routeData.setDuration(road.getDuration());
             routeData.setPrice(road.getPrice());
             routeData.setStatus(road.getStatus());
-
+    
             totalDistance += road.getDistance();
             totalDuration += road.getDuration();
             totalPrice += road.getPrice();
-
+    
             pathData.add(0, routeData); // 将节点数据加入路径
             node = node.getParent(); // 移动到父节点
         }
-
-        System.out.println("Total distance: " + totalDistance);
-        System.out.println("Total duration: " + totalDuration);
-        System.out.println("Total price: " + totalPrice);
-        
-
+    
+        // 保存计算结果到数据库
         Route resultRoute = new Route();
         resultRoute.setPathData(pathData); // 设置路径数据
-        resultRoute.setDistance(String.valueOf(totalDistance));
-        resultRoute.setDuration(String.valueOf(totalDuration));
-        resultRoute.setPrice(String.valueOf(totalPrice));
-        
-
+        resultRoute.setDistance(totalDistance);
+        resultRoute.setDuration(totalDuration);
+        resultRoute.setPrice(totalPrice);
+    
+        // 将结果存入数据库
+        saveRouteToDatabase(userId, startId, endId, pathData, totalDuration, totalDistance, totalPrice);
+    
         return resultRoute;
     }
+    
+    private void saveRouteToDatabase(int userId, long startId, long endId, List<RouteData> pathData, double duration, double distance, double price) {
+        Route route = new Route();
+        route.setUserId(userId);
+        route.setStartId(startId);
+        route.setEndId(endId);
+        route.setPathData(pathData); // 将路径数据序列化为 JSON
+        route.setDuration(duration);
+        route.setDistance(distance);
+        route.setPrice(price);
+        route.setTimestamp(String.valueOf(LocalDateTime.now()));
+    
+        routeMapper.insertRoute(route); // 调用 RouteMapper 插入数据库
+    }
+    
 
     private List<Road> getNeighbors(Road currentRoad) {
         System.out.println("Getting neighbors for road: " + currentRoad.getName());

@@ -15,7 +15,7 @@ public class RouteData {
     private double price;  
     private String status;    // 价格
 
-    public RouteData(double startLat, double startLong, double endLat, double endLong, double distance, double duration, double price) {
+    public RouteData(double startLat, double startLong, double endLat, double endLong, double distance, double duration, double price,String status) {
         this.startLat = startLat;
         this.startLong = startLong;
         this.endLat = endLat;
