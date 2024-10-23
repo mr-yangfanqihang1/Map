@@ -325,7 +325,7 @@ public class TrafficDataConsumer implements Runnable {
                             System.out.println("Inserted new road data for roadId " + roadId);
                         }
                     } else {
-                        System.err.println("Road data not found in Redis for roadId " + roadId);
+                    //    System.err.println("Road data not found in Redis for roadId " + roadId);
                     }
                 } finally {
                     readWriteLock.writeLock().unlock(); // 释放写锁
