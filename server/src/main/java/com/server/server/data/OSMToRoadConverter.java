@@ -31,7 +31,7 @@ public class OSMToRoadConverter {
     // 解析 OSM 数据并构建邻接表
     public void parseOSMData() throws IOException {
         // 使用相对路径读取文件
-        File osmFile = Paths.get("server/src/main/resources/export1.json").toFile();
+        File osmFile = Paths.get("server/src/main/resources/export4.json").toFile();
 
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode rootNode = objectMapper.readTree(osmFile);

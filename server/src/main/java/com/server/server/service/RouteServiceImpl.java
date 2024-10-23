@@ -78,7 +78,7 @@ public class RouteServiceImpl implements RouteService {
     }
 
     public void scheduleRoutes() {
-        int timeSlice = 1000; // 每个优先级的时间片，单位为毫秒
+        int timeSlice = 1000000; // 每个优先级的时间片，单位为毫秒
         boolean hasProcessed = false; 
         
         for (int i = 0; i < PRIORITY_LEVELS; i++) {
@@ -107,7 +107,7 @@ public class RouteServiceImpl implements RouteService {
         }
     }
 
-    @Scheduled(fixedDelay = 1000)  // 每 3 秒执行一次调度
+    @Scheduled(fixedDelay = 1000000)  // 每 3 秒执行一次调度
     public void runScheduler() {
         System.out.println("Running route scheduling...");
         scheduleRoutes();
@@ -254,7 +254,7 @@ public class RouteServiceImpl implements RouteService {
     }
     private boolean shouldPause() {
         // 可以根据实际时间、轮转调度时间片等条件判断
-        return System.currentTimeMillis() % 100000 == 0; 
+        return System.currentTimeMillis() %1000000  == 0; 
     }
 
     private double getCost(Road road, Map<String, Double> weights) {
