@@ -268,7 +268,7 @@ public class RouteServiceImpl implements RouteService {
                 weightDuration * normalizedDuration +
                 weightPrice * normalizedPrice;
 
-        System.out.println("Cost for road " + road.getName() + ": " + cost);
+        //System.out.println("Cost for road " + road.getName() + ": " + cost);
         return cost;
     }
 
@@ -324,14 +324,14 @@ public class RouteServiceImpl implements RouteService {
     }
 
     private List<Road> getNeighbors(Road currentRoad) {
-        System.out.println("Getting neighbors for road: " + currentRoad.getName());
+        //System.out.println("Getting neighbors for road: " + currentRoad.getName());
         return roadService.getNeighbors(currentRoad.getId()); // 假设方法返回相邻道路的列表
     }
     private double heuristic(Road currentRoad, Road endRoad) {
         double deltaX = Math.abs(currentRoad.getStartLat() - endRoad.getStartLat());
         double deltaY = Math.abs(currentRoad.getStartLong() - endRoad.getStartLong());
         double heuristicValue = deltaX + deltaY;
-        System.out.println("Heuristic value for road " + currentRoad.getName() + " to " + endRoad.getName() + ": " + heuristicValue);
+        //System.out.println("Heuristic value for road " + currentRoad.getName() + " to " + endRoad.getName() + ": " + heuristicValue);
         return heuristicValue;
     }
 
