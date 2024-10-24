@@ -28,10 +28,13 @@ public class OSMToRoadConverter {
     // 保存生成的道路，方便后续插入数据库
     private List<Road> roads = new ArrayList<>();
 
+    // 保存已使用的节点 ID，避免重复生成道路
+    private Set<Long> usedNodeIds = new HashSet<>();
+
     // 解析 OSM 数据并构建邻接表
     public void parseOSMData() throws IOException {
         // 使用相对路径读取文件
-        File osmFile = Paths.get("server/src/main/resources/export4.json").toFile();
+        File osmFile = Paths.get("server/src/main/resources/export.json").toFile();
 
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode rootNode = objectMapper.readTree(osmFile);
@@ -46,15 +49,15 @@ public class OSMToRoadConverter {
                 nodeCoordinates.put(nodeId, new double[]{lat, lon});
             }
         }
-
-        // 处理所有的way，构建邻接表
+        System.out.println("节点总数: " + nodeCoordinates.size());
+        // 处理所有的 way，构建邻接表
         for (JsonNode element : elements) {
             if ("way".equals(element.get("type").asText())) {
                 JsonNode nodes = element.get("nodes");
                 String name = element.get("tags").has("name") ? element.get("tags").get("name").asText() : "Unnamed Road";
                 boolean isOneway = element.get("tags").has("oneway") && "yes".equals(element.get("tags").get("oneway").asText());
 
-                // 构建邻接表中的道路，处理从 startNodeId 到 endNodeId
+                // 遍历节点对，构建道路
                 for (int i = 0; i < nodes.size() - 1; i++) {
                     long startNodeId = nodes.get(i).asLong();
                     long endNodeId = nodes.get(i + 1).asLong();
@@ -64,15 +67,19 @@ public class OSMToRoadConverter {
                     double[] endCoord = nodeCoordinates.get(endNodeId);
 
                     if (startCoord != null && endCoord != null) {
-                        // 创建一条邻接表中的道路记录
-                        createRoad(startNodeId, endNodeId, name, startCoord, endCoord);
-
-                        // 双向道路需要创建反向记录
-                        if (!isOneway) {
-                            createRoad(endNodeId, startNodeId, name, endCoord, startCoord);
+                        // 仅在 startNodeId 没有使用过时创建道路
+                        if (!usedNodeIds.contains(startNodeId)) {
+                            createRoad(startNodeId, endNodeId, name, startCoord, endCoord);
+                            usedNodeIds.add(startNodeId); // 标记节点为已使用
                         }
 
-                        // 将 startNodeId 和 endNodeId 关联起来，更新邻接关系
+                        // 双向道路需要创建反向记录
+                        if (!isOneway && !usedNodeIds.contains(endNodeId)) {
+                            createRoad(endNodeId, startNodeId, name, endCoord, startCoord);
+                            usedNodeIds.add(endNodeId); // 标记节点为已使用
+                        }
+
+                        // 更新邻接关系
                         updateAdjacencyList(startNodeId, endNodeId);
                         if (!isOneway) {
                             updateAdjacencyList(endNodeId, startNodeId);
@@ -99,7 +106,7 @@ public class OSMToRoadConverter {
             } else {
                 // 如果道路不存在，插入新的道路
                 roadMapper.insertRoad(road);
-                System.out.println("插入新道路ID " + road.getId());
+                //System.out.println("插入新道路ID " + road.getId());
             }
         }
     }
@@ -119,7 +126,6 @@ public class OSMToRoadConverter {
         road.setStatus("绿"); // 默认状态为 "绿"
         road.setPrice(road.getDistance() * 1.0); // 根据距离计算价格，假设每千米1.0单位
         road.setNextRoadId(""); // 将 nextRoadId 初始化为空字符串
-
         roads.add(road); // 将新建的道路加入道路列表
     }
 

@@ -320,10 +320,11 @@ public class TrafficDataConsumer implements Runnable {
                             if (hasChanges) {
                                 System.out.println("Persisted updated road data for roadId " + roadId);
                             }
-                        } else {
-                            roadMapper.insertRoad(roadInRedis);
-                            System.out.println("Inserted new road data for roadId " + roadId);
-                        }
+                        } 
+                        // else {
+                        //     //roadMapper.insertRoad(roadInRedis);
+                        //     //System.out.println("Inserted new road data for roadId " + roadId);
+                        // }//redis持久化导致的bug
                     } else {
                     //    System.err.println("Road data not found in Redis for roadId " + roadId);
                     }

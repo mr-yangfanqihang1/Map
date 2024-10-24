@@ -11,18 +11,15 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.server.server.data.Road;
 import com.server.server.data.Route;
 import com.server.server.data.RouteData;
 import com.server.server.mapper.RouteMapper;
-
 @Service
 public class RouteServiceImpl implements RouteService {
 
@@ -381,3 +378,4 @@ public class RouteServiceImpl implements RouteService {
         }
     }
 }
+
