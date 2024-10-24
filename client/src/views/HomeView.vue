@@ -11,6 +11,7 @@
 
     <!-- 路线管理部分，左上角展示已计算的路线信息 -->
     <div class="route-management">
+      <button @click="toggleRoadStatus">{{ showRoadStatus ? 'Hide' : 'Show' }} Road Status</button>
       <h3>Calculate Route</h3>
       <form @submit.prevent="calculateRoute">
         <!-- 用户 ID 输入框 -->
@@ -90,6 +91,9 @@ export default {
         userId: '',
         startId: '',
         endId: '',
+        showRoadStatus: false,
+        movingIcon: null, // Store moving icon reference
+        currentSegmentIndex: 0, // Track current segment index for movement
       },
       startInput: '',  // 用于显示用户输入的起点名称
       endInput: '',    // 用于显示用户输入的终点名称
@@ -109,6 +113,7 @@ export default {
   mounted() {
     this.initMap();
     this.setUserIdFromUrl(); // 设置用户 ID
+    this.initWebSocket(); // Initialize WebSocket connection on mount
   },
   methods: {
     setUserIdFromUrl() {
@@ -126,6 +131,27 @@ export default {
         this.initializeMap();
       };
       document.head.appendChild(script);
+    },
+    initWebSocket() {
+      const socket = new WebSocket('ws://localhost:8080/traffic-updates');
+
+      socket.onmessage = (event) => {
+        const update = JSON.parse(event.data);
+        this.updateRouteTime(update);
+      };
+
+      socket.onerror = (error) => console.error('WebSocket error:', error);
+    },
+
+    updateRouteTime(update) {
+      // Logic to update estimated time for users on affected routes.
+      update.routeId = undefined;
+      if (update.routeId === this.calculateInput.startId || update.routeId === this.calculateInput.endId) {
+        // Update logic here based on received update data.
+        console.log('Route time updated:', update);
+
+        // You might want to notify users or refresh their route information here.
+      }
     },
     initializeMap() {
       if (window.AMap) {
@@ -239,6 +265,107 @@ export default {
 
       this.polyline.setMap(this.map);
       this.map.setFitView([this.polyline]);
+      this.startMovingIcon(pathData); // Start moving icon after drawing route
+    },
+    startMovingIcon(pathData) {
+      if (this.movingIcon) {
+        this.movingIcon.setMap(null); // Remove previous icon if exists
+      }
+
+      this.movingIcon = new AMap.Marker({
+        position: [pathData[0].startLong, pathData[0].startLat],
+        icon: 'path/to/icon.png', // Path to your moving icon image
+        map: this.map,
+      });
+
+      this.moveAlongRoute(pathData);
+    },
+
+    moveAlongRoute(pathData) {
+      const interval = setInterval(() => {
+        if (this.currentSegmentIndex < pathData.length) {
+          const segment = pathData[this.currentSegmentIndex];
+          const nextPosition = [segment.endLong, segment.endLat];
+
+          this.movingIcon.setPosition(nextPosition);
+          this.uploadTrafficData(segment); // Upload traffic data for current segment
+
+          this.currentSegmentIndex++;
+        } else {
+          clearInterval(interval); // Stop when route is completed
+        }
+      }, 1000); // Adjust speed here (in milliseconds)
+    },
+
+    uploadRouteData(segment) {
+      const routeData = {
+        segmentId: segment.id, // Assuming each segment has an ID
+        startLong: segment.startLong,
+        startLat: segment.startLat,
+        endLong: segment.endLong,
+        endLat: segment.endLat,
+        currentStatus: this.getCurrentRouteStatus(segment), // Function to determine current status
+        timestamp: new Date().toISOString(), // Current timestamp
+      };
+
+     // Send traffic data to backend
+      axios.post('http://localhost:8080/api/route/upload', routeData)
+        .then(response => console.log('Route data uploaded:', response))
+        .catch(error => console.error('Error uploading route data:', error));
+    },
+
+    getCurrentRouteStatus(segment) {
+      // Logic to determine current traffic status based on your criteria
+      // For example, you might have conditions based on speed or congestion level
+      if (segment.congestionLevel > 70) {
+        return 'red'; // High congestion
+      } else if (segment.congestionLevel > 30) {
+        return 'orange'; // Moderate congestion
+      } else {
+        return 'green'; // Low congestion
+      }
+    },
+
+    toggleRoadStatus() {
+      this.showRoadStatus = !this.showRoadStatus;
+      if (this.showRoadStatus) {
+        this.displayRoadStatus(); // Fetch and display road statuses
+      } else {
+        this.clearRoadStatus(); // Clear displayed statuses
+      }
+    },
+
+    displayRoadStatus() {
+      axios.get('http://localhost:8080/api/roads/status') // Adjust API endpoint as needed
+          .then(response => {
+            response.data.forEach(road => {
+              const color = this.getColorForStatus(road.status); // Get color based on status
+              const polyline = new AMap.Polyline({
+                path: road.coordinates, // Assuming coordinates are provided in the response
+                strokeColor: color,
+                strokeWeight: 6,
+              });
+              polyline.setMap(this.map);
+            });
+          })
+          .catch(error => console.error('Error fetching road status:', error));
+    },
+
+    clearRoadStatus() {
+      this.map.clearMap(); // Clear all overlays from the map
+    },
+
+    getColorForStatus(status) {
+      switch (status) {
+        case 'red':
+          return '#FF0000'; // Red for congested
+        case 'orange':
+          return '#FFA500'; // Orange for moderate
+        case 'green':
+          return '#008000'; // Green for clear
+        default:
+          return '#CCCCCC'; // Default color if status is unknown
+      }
     },
   },
 };
