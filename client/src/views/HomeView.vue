@@ -116,14 +116,58 @@ export default {
     this.initWebSocket(); // Initialize WebSocket connection on mount
   },
   methods: {
-    setUserIdFromUrl() {
-      const url = window.location.href;
-      const match = url.match(/\/(\d+)$/); // 匹配最后的数字 ID
-      if (match) {
-        this.calculateInput.userId = match[1]; // 将 ID 填入 userId 输入框
-        this.isUserIdReadonly = true; // 将输入框设为只读
+    initWebSocket() {
+    const userId = this.calculateInput.userId;
+    
+    // 使用 SockJS 作为传输层
+    const socket = new SockJS("http://localhost:8080/ws");
+    const client = new Client({
+      webSocketFactory: () => socket, // 使用 SockJS
+      connectHeaders: {
+        login: "guest",
+        passcode: "guest",
+      },
+      onConnect: () => {
+        console.log('WebSocket connected');
+        // 订阅用户专属的队列
+        client.subscribe(`/user/${userId}/queue/roadUpdates`, (message) => {
+          const update = JSON.parse(message.body);
+          this.updateDuration(update.roadId, update.durationAdjustment);
+        });
+      },
+      onStompError: (error) => {
+        console.error('STOMP 错误:', error);
+      },
+      onWebSocketError: (error) => {
+        console.error('WebSocket error:', error);
+      },
+      onWebSocketClose: () => {
+        console.log('WebSocket closed. Attempting to reconnect...');
+        setTimeout(() => this.initWebSocket(), 1000); // 自动重连机制
       }
-    },
+    });
+
+    client.activate();
+  },
+
+  updateDuration(roadId, durationAdjustment) {
+    const road = this.pathData.find((r) => r.roadId === roadId);
+    if (road) {
+      road.duration += durationAdjustment;
+      this.totalDuration += durationAdjustment;
+    }
+  },
+
+  setUserIdFromUrl() {
+    const url = window.location.href;
+    const match = url.match(/\/(\d+)$/);
+    if (match) {
+      this.calculateInput.userId = match[1];
+      this.isUserIdReadonly = true;
+      console.log("connect to WebSocket");
+      this.initWebSocket(); // 在设置用户 ID 后连接 WebSocket
+    }
+  },
     initMap() {
       const script = document.createElement('script');
       script.src = 'https://webapi.amap.com/maps?v=1.4.15&key=73f31edb64d7baefbc909c8bac5b839f';
@@ -308,48 +352,48 @@ export default {
         timestamp: new Date().toISOString(), // Current timestamp
       };
 
-      // Send traffic data to backend
-      axios.post('http://localhost:8080/api/route/upload', routeData)
-          .then(response => console.log('Route data uploaded:', response))
-          .catch(error => console.error('Error uploading route data:', error));
-    },
+    // Send traffic data to backend
+    axios.post('http://localhost:8080/api/route/upload', routeData)
+      .then(response => console.log('Route data uploaded:', response))
+      .catch(error => console.error('Error uploading route data:', error));
+  },
 
-    getCurrentRouteStatus(segment) {
-      // Logic to determine current traffic status based on your criteria
-      // For example, you might have conditions based on speed or congestion level
-      if (segment.congestionLevel > 70) {
-        return 'red'; // High congestion
-      } else if (segment.congestionLevel > 30) {
-        return 'orange'; // Moderate congestion
-      } else {
-        return 'green'; // Low congestion
-      }
-    },
+  getCurrentRouteStatus(segment) {
+    // Logic to determine current traffic status based on your criteria
+    // For example, you might have conditions based on speed or congestion level
+    if (segment.congestionLevel > 70) {
+      return 'red'; // High congestion
+    } else if (segment.congestionLevel > 30) {
+      return 'orange'; // Moderate congestion
+    } else {
+      return 'green'; // Low congestion
+    }
+  },
 
-    toggleRoadStatus() {
-      this.showRoadStatus = !this.showRoadStatus;
-      if (this.showRoadStatus) {
-        this.displayRoadStatus(); // Fetch and display road statuses
-      } else {
-        this.clearRoadStatus(); // Clear displayed statuses
-      }
-    },
+  toggleRoadStatus() {
+    this.showRoadStatus = !this.showRoadStatus;
+    if (this.showRoadStatus) {
+      this.displayRoadStatus(); // Fetch and display road statuses
+    } else {
+      this.clearRoadStatus(); // Clear displayed statuses
+    }
+  },
 
-    displayRoadStatus() {
-      axios.get('http://127.0.0.1:8080/api/roads/all') // Adjust API endpoint as needed
-          .then(response => {
-            response.data.forEach(road => {
-              const color = this.getColorForStatus(road.status); // Get color based on status
-              const polyline = new AMap.Polyline({
-                path: road.coordinates, // Assuming coordinates are provided in the response
-                strokeColor: color,
-                strokeWeight: 6,
-              });
-              polyline.setMap(this.map);
+  displayRoadStatus() {
+    axios.get('http://localhost:8080/api/roads/all') // Adjust API endpoint as needed
+        .then(response => {
+          response.data.forEach(road => {
+            const color = this.getColorForStatus(road.status); // Get color based on status
+            const polyline = new AMap.Polyline({
+              path: road.coordinates, // Assuming coordinates are provided in the response
+              strokeColor: color,
+              strokeWeight: 6,
             });
-          })
-          .catch(error => console.error('Error fetching road status:', error));
-    },
+            polyline.setMap(this.map);
+          });
+        })
+        .catch(error => console.error('Error fetching road status:', error));
+  },
 
     clearRoadStatus() {
       this.map.clearMap(); // Clear all overlays from the map
