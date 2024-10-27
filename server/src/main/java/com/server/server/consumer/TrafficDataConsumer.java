@@ -271,7 +271,7 @@ public class TrafficDataConsumer implements Runnable {
         // Step 3: 计算状态
         String calculatedStatus = calculateRoadStatus(roadTrafficData.getUserCount(), roadTrafficData.getMaxLoad());
         if (!calculatedStatus.equals(roadTrafficData.getStatus())) {
-            System.out.println("Road status mismatch, updating road status for roadId: " + roadTrafficData.getRoadId());
+            //System.out.println("Road status mismatch, updating road status for roadId: " + roadTrafficData.getRoadId());
             nonFairLock.lock(); // 获取非公平锁
             try {
                 if (road == null) {
@@ -300,7 +300,7 @@ public class TrafficDataConsumer implements Runnable {
                 }
                 // Step 6: 更新 Redis 中的数据
                 valueOps.set("roadData:roadId:" + road.getId(), road);
-                System.out.println("Updated road status for roadId: " + road.getId());
+                //System.out.println("Updated road status for roadId: " + road.getId());
             } catch (Exception e) {
                 System.out.println("Error while updating road status for roadId: " + roadTrafficData.getRoadId() + ": " + e.getMessage());
                 e.printStackTrace();

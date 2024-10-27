@@ -113,6 +113,7 @@ public class RouteServiceImpl implements RouteService {
         Route existingRoute = routeMapper.findPathByStartAndEnd(route.getStartId(), route.getEndId());
         if (existingRoute != null) {
             System.out.println("Found existing route in database.");
+            //existingRoute.setRouteDataFromJson(null);
             return existingRoute; // 如果数据库中有，直接返回
         }
 
@@ -201,7 +202,7 @@ public class RouteServiceImpl implements RouteService {
             // 如果到达终点，构建路径
             if (isGoal(currentNode, endRoad)) {
                 //System.out.println("找到目标节点: " + currentNode.getRoad().getName());
-                return constructRoute(currentNode, RouteData);  // 构建路径
+                return constructRoute(currentNode, RouteData,route);  // 构建路径
             }
 
             // 将当前节点加入关闭列表
@@ -278,7 +279,7 @@ public class RouteServiceImpl implements RouteService {
         return isGoal;
     }
 
-    private Route constructRoute(Node node, List<RouteData> RouteData) {
+    private Route constructRoute(Node node, List<RouteData> RouteData,Route route) {
         //System.out.println("Constructing route from goal to start...");
 
         double totalDistance = 0;
@@ -311,14 +312,12 @@ public class RouteServiceImpl implements RouteService {
         System.out.println("Total price: " + totalPrice);
         
 
-        Route resultRoute = new Route();
-        resultRoute.setRouteData(RouteData); // 设置路径数据
-        resultRoute.setDistance(String.valueOf(totalDistance));
-        resultRoute.setDuration(String.valueOf(totalDuration));
-        resultRoute.setPrice(String.valueOf(totalPrice));
-        
-
-        return resultRoute;
+        route.setRouteData(RouteData); // 设置路径数据
+        route.setDistance(String.valueOf(totalDistance));
+        route.setDuration(String.valueOf(totalDuration));
+        route.setPrice(String.valueOf(totalPrice));
+        routeMapper.insertRoute(route);
+        return route;
     }
 
     private List<Road> getNeighbors(Road currentRoad) {

@@ -4,20 +4,26 @@ import java.util.List;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Result;
+import org.apache.ibatis.annotations.Results;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import com.server.server.data.Road;
 import com.server.server.data.Route;
+import com.server.server.handler.JsonTypeHandler;
 
 @Mapper
 public interface RouteMapper {
 
     // 插入新路径
     @Insert("INSERT INTO routes (user_id, start_id, end_id, distance, duration, price, timestamp, priority, request_time, distance_weight, duration_weight, price_weight, route_data) " +
-            "VALUES (#{userId}, #{startId}, #{endId}, #{distance}, #{duration}, #{price}, #{timestamp}, #{priority}, #{requestTime}, #{distanceWeight}, #{durationWeight}, #{priceWeight}, #{pathDataJson})")
+            "VALUES (#{userId}, #{startId}, #{endId}, #{distance}, #{duration}, #{price}, #{timestamp}, #{priority}, #{requestTime}, #{distanceWeight}, #{durationWeight}, #{priceWeight}, #{routeDataJson})")
     void insertRoute(Route route);
 
     @Select("SELECT * FROM routes WHERE id = #{id}")
+    @Results({
+        @Result(column = "route_data", property = "routeData", typeHandler = JsonTypeHandler.class)
+        })
     Route getRouteById(int id);
 
     // 获取 Road 通过 ID
