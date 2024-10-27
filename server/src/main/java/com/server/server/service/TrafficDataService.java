@@ -3,6 +3,7 @@ package com.server.server.service;
 import com.server.server.consumer.TrafficDataConsumer;
 import com.server.server.data.*;
 import com.server.server.mapper.RoadMapper;
+import com.server.server.mapper.RouteMapper;
 import com.server.server.mapper.TrafficDataMapper;
 import com.server.server.mapper.UserMapper;
 import com.server.server.request.traffic.*;
@@ -25,6 +26,8 @@ public class TrafficDataService {
     private RoadMapper roadMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private RouteMapper routeMapper;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate; // 自动注入RedisTemplate
@@ -51,7 +54,7 @@ public class TrafficDataService {
         System.out.println("Consumer thread pool initialized...");
         
         // 将消费者任务提交到线程池
-        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, roadMapper,userMapper, queryResults, redisTemplate)); 
+        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, roadMapper,userMapper,routeMapper, queryResults, redisTemplate)); 
     }
 
 

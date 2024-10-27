@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReadWriteLock;
 import org.apache.ibatis.exceptions.PersistenceException;
+import org.springframework.boot.actuate.endpoint.web.PathMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import com.server.server.data.*;
@@ -17,6 +18,8 @@ import com.server.server.mapper.RoadMapper;
 import com.server.server.mapper.TrafficDataMapper;
 import com.server.server.mapper.UserMapper;
 import com.server.server.request.traffic.*;
+import com.server.server.service.RoadStatusWebSocketService;
+import com.server.server.mapper.RouteMapper;
 public class TrafficDataConsumer implements Runnable {
     private final PriorityBlockingQueue<TrafficDataRequest> queue;
     private final TrafficDataMapper trafficDataMapper;
@@ -29,16 +32,19 @@ public class TrafficDataConsumer implements Runnable {
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private final RedisTemplate<String, Object> redisTemplate;
     private final ValueOperations<String, Object> valueOps;
+    private RoadStatusWebSocketService roadStatusWebSocketService;
 
     // 非公平锁和读写锁
     private final ReentrantLock nonFairLock = new ReentrantLock(false);
     private final ReadWriteLock readWriteLock = new java.util.concurrent.locks.ReentrantReadWriteLock();
+    private RouteMapper routeMapper;
 
     public TrafficDataConsumer(
             PriorityBlockingQueue<TrafficDataRequest> queue,
             TrafficDataMapper trafficDataMapper,
             RoadMapper roadMapper,
             UserMapper userMapper,  // 传入 userMapper
+            RouteMapper routeMapper,
             ConcurrentHashMap<Integer, List<TrafficData>> queryResults,
             RedisTemplate<String, Object> redisTemplate
     ) {
@@ -49,6 +55,7 @@ public class TrafficDataConsumer implements Runnable {
         this.queryResults = queryResults;
         this.redisTemplate = redisTemplate;
         this.valueOps = redisTemplate.opsForValue();
+        this.routeMapper = routeMapper;
 
         // 初始化时加载所有道路和用户数据到 Redis
         loadInitialRoad();
@@ -129,6 +136,8 @@ public class TrafficDataConsumer implements Runnable {
 
         // 定期将 Redis 的状态持久化到数据库
         scheduler.scheduleAtFixedRate(this::updateRoadDataFromRedis, 0, 60, TimeUnit.SECONDS);
+        //定期更新user到数据库
+        scheduler.scheduleAtFixedRate(this::updateUserDataFromRedis, 0, 60, TimeUnit.SECONDS);
 
         // 处理队列中的请求
         while (true) {
@@ -255,13 +264,10 @@ public class TrafficDataConsumer implements Runnable {
     for (RoadTrafficData roadTrafficData : roadTrafficDataList) {
         
         Road road = (Road) redisTemplate.opsForValue().get("roadData:roadId:" + roadTrafficData.getRoadId());
-
         // Step 3: 计算状态
         String calculatedStatus = calculateRoadStatus(roadTrafficData.getUserCount(), roadTrafficData.getMaxLoad());
-
         if (!calculatedStatus.equals(roadTrafficData.getStatus())) {
             System.out.println("Road status mismatch, updating road status for roadId: " + roadTrafficData.getRoadId());
-
             nonFairLock.lock(); // 获取非公平锁
             try {
                 if (road == null) {
@@ -274,12 +280,20 @@ public class TrafficDataConsumer implements Runnable {
                 
                 // Step 5: 根据计算的速度更新持续时间
                 if (roadTrafficData.getAverageSpeed() != 0) {
-                    road.setDuration(road.getDistance() * 60 / roadTrafficData.getAverageSpeed());
+                    //用路程除以平均速度得到预计时间
+                    double newDuration=road.getDistance() * 60 / roadTrafficData.getAverageSpeed();
+                    double durationAdjustment = newDuration-road.getDuration();
+                    // 查询 path 表获取包含 roadId 的用户 ID 列表
+                    List<Integer> affectedUserIds = routeMapper.getUsersByRoadId(roadTrafficData.getRoadId());
+                    // 通知受影响的用户
+                    for (Integer userId : affectedUserIds) {
+                        roadStatusWebSocketService.notifyUser(userId, roadTrafficData.getRoadId(), durationAdjustment);
+                    }
+                    road.setDuration(newDuration);
                 } else {
                     System.out.println("Warning: Average speed is zero for roadId: " + roadTrafficData.getRoadId());
                     road.setDuration(0); // 防止除以零
                 }
-
                 // Step 6: 更新 Redis 中的数据
                 valueOps.set("roadData:roadId:" + road.getId(), road);
                 System.out.println("Updated road status for roadId: " + road.getId());
@@ -294,6 +308,44 @@ public class TrafficDataConsumer implements Runnable {
     System.out.println("Finished check And Update All Road Statuses");
 }
 
+
+
+    // 从 Redis 中读取道路对象并批量更新到数据库
+    private void updateUserDataFromRedis() {
+        System.out.println("updating UserData From redis");
+        Set<String> userKeysSet = redisTemplate.keys("userData:userId:*");
+        if (userKeysSet != null && !userKeysSet.isEmpty()) {
+            for (String key : userKeysSet) {
+                int userId = Integer.parseInt(key.split(":")[2]);
+                readWriteLock.writeLock().lock(); // 获取写锁进行更新
+                try {
+                    Object userObj = valueOps.get(key);
+                    if (userObj instanceof User) {
+                        User userInRedis = (User) userObj;
+                        User userInDatabase = userMapper.getUserById(userId);
+                        if (userInDatabase != null) {
+                            boolean hasChanges = false;
+                            if (!userInRedis.getPreferences().equals(userInDatabase.getPreferences())) {
+                                userMapper.updatePreferences(userId, userInRedis.getPreferences());
+                                hasChanges = true;
+                            }
+                            if (hasChanges) {
+                                System.out.println("Persisted updated user data for userId " + userId);
+                            }
+                        } 
+                        // else {
+                        //     //roadMapper.insertRoad(roadInRedis);
+                        //     //System.out.println("Inserted new road data for roadId " + roadId);
+                        // }//redis持久化导致的bug
+                    } else {
+                    //    System.err.println("Road data not found in Redis for roadId " + roadId);
+                    }
+                } finally {
+                    readWriteLock.writeLock().unlock(); // 释放写锁
+                }
+            }
+        }
+    }
 
 
     // 从 Redis 中读取道路对象并批量更新到数据库

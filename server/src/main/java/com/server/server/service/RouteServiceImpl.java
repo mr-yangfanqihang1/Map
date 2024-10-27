@@ -1,5 +1,4 @@
 package com.server.server.service;
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -22,7 +21,6 @@ import com.server.server.data.RouteData;
 import com.server.server.mapper.RouteMapper;
 @Service
 public class RouteServiceImpl implements RouteService {
-
     @Autowired
     private RouteMapper routeMapper;
     @Autowired
