@@ -155,7 +155,7 @@ export default {
   },
 
   updateDuration(roadId, durationAdjustment) {
-    const road = this.pathData.find((r) => r.roadId === roadId);
+    const road = this.routeData.find((r) => r.roadId === roadId);
     if (road) {
       road.duration += durationAdjustment;
       this.totalDuration += durationAdjustment;
@@ -206,6 +206,7 @@ export default {
       if (this.startInput) {
         axios.get(`http://localhost:8080/api/roads/name?name=${this.startInput}`)
             .then(response => {
+              console.log(response.data);
               this.startSuggestions = response.data;  // 期望返回的是道路数组
             })
             .catch(error => {
@@ -272,19 +273,19 @@ export default {
     },
     // 在点击按钮时输出结果和绘制线条
     outputAndDrawRoute() {
-      if (this.isCalculationComplete && this.routeData && this.routeData.pathData) {
-        this.drawRoute(this.routeData.pathData);
+      if (this.isCalculationComplete && this.routeData && this.routeData.routeData) {
+        this.drawRoute(this.routeData.routeData);
         const roundedDuration = Math.round(this.routeData.duration);
         this.calculatedRoute = `路线绘制完成，预计时间：${roundedDuration} 分钟`;
       }
     },
 
-    drawRoute(pathData) {
+    drawRoute(routeData) {
       if (this.polyline) {
         this.polyline.setMap(null);
       }
 
-      const routePath = pathData.flatMap((segment) => {
+      const routePath = routeData.flatMap((segment) => {
         return [
           [segment.startLong, segment.startLat],
           [segment.endLong, segment.endLat]
@@ -303,26 +304,26 @@ export default {
 
       this.polyline.setMap(this.map);
       this.map.setFitView([this.polyline]);
-      this.startMovingIcon(pathData); // Start moving icon after drawing route
+      this.startMovingIcon(routeData); // Start moving icon after drawing route
     },
-    startMovingIcon(pathData) {
+    startMovingIcon(routeData) {
       if (this.movingIcon) {
         this.movingIcon.setMap(null); // Remove previous icon if exists
       }
 
       this.movingIcon = new AMap.Marker({
-        position: [pathData[0].startLong, pathData[0].startLat],
+        position: [routeData[0].startLong, routeData[0].startLat],
         icon: 'path/to/icon.png', // Path to your moving icon image
         map: this.map,
       });
 
-      this.moveAlongRoute(pathData);
+      this.moveAlongRoute(routeData);
     },
 
-    moveAlongRoute(pathData) {
+    moveAlongRoute(routeData) {
       const interval = setInterval(() => {
-        if (this.currentSegmentIndex < pathData.length) {
-          const segment = pathData[this.currentSegmentIndex];
+        if (this.currentSegmentIndex < routeData.length) {
+          const segment = routeData[this.currentSegmentIndex];
           const nextPosition = [segment.endLong, segment.endLat];
 
           this.movingIcon.setPosition(nextPosition);
