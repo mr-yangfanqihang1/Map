@@ -24,7 +24,7 @@ public interface RouteMapper {
     @Select("SELECT * FROM roads WHERE id = #{id}")
     Road getRoadById(long id);
 
-    @Select("SELECT user_id FROM path WHERE JSON_CONTAINS(path_data, JSON_OBJECT('roadId', #{roadId}), '$')")
+    @Select("SELECT user_id FROM routes WHERE JSON_CONTAINS(route_data, JSON_OBJECT('roadId', #{roadId}), '$')")
     List<Integer> getUsersByRoadId(@Param("roadId") long roadId);
 
     // 获取邻居 Road
@@ -38,7 +38,7 @@ public interface RouteMapper {
     @Update("UPDATE routes SET user_id = #{userId}, start_id = #{startId}, end_id = #{endId}, " +
             "distance = #{distance}, duration = #{duration}, price = #{price}, timestamp = #{timestamp}, " +
             "priority = #{priority}, request_time = #{requestTime}, distance_weight = #{distanceWeight}, " +
-            "duration_weight = #{durationWeight}, price_weight = #{priceWeight}, route_data = #{pathDataJson} " +
+            "duration_weight = #{durationWeight}, price_weight = #{priceWeight}, route_data = #{routeDataJson} " +
             "WHERE id = #{id}")
     void updateRoute(Route route);
 }

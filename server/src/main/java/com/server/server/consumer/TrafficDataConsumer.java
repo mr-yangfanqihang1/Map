@@ -142,7 +142,9 @@ public class TrafficDataConsumer implements Runnable {
         // 处理队列中的请求
         while (true) {
             try {
+                
                 TrafficDataRequest request = queue.take();
+                System.out.println(request);
                 processRequest(request);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -156,6 +158,7 @@ public class TrafficDataConsumer implements Runnable {
     private void processRequest(TrafficDataRequest request) {
         try {
             if (request instanceof TrafficDataInsertRequest) {
+                System.out.println("insertBatch adding");
                 insertBatch.add(((TrafficDataInsertRequest) request).getTrafficData());
                 System.out.println("insertBatch added");
             } else if (request instanceof TrafficDataUpdateRequest) {

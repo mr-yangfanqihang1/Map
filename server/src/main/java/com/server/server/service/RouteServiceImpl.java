@@ -182,7 +182,7 @@ public class RouteServiceImpl implements RouteService {
     }
 
     private Route aStarSearch(Road startRoad, Road endRoad, Map<String, Double> weights, Route route) {
-        List<RouteData> pathData = new ArrayList<>(); // 用于存储结果路径数据
+        List<RouteData> RouteData = new ArrayList<>(); // 用于存储结果路径数据
         
         PriorityQueue<Node> openList = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
         Set<Road> closedList = new HashSet<>();
@@ -201,7 +201,7 @@ public class RouteServiceImpl implements RouteService {
             // 如果到达终点，构建路径
             if (isGoal(currentNode, endRoad)) {
                 //System.out.println("找到目标节点: " + currentNode.getRoad().getName());
-                return constructRoute(currentNode, pathData);  // 构建路径
+                return constructRoute(currentNode, RouteData);  // 构建路径
             }
 
             // 将当前节点加入关闭列表
@@ -278,7 +278,7 @@ public class RouteServiceImpl implements RouteService {
         return isGoal;
     }
 
-    private Route constructRoute(Node node, List<RouteData> pathData) {
+    private Route constructRoute(Node node, List<RouteData> RouteData) {
         //System.out.println("Constructing route from goal to start...");
 
         double totalDistance = 0;
@@ -302,7 +302,7 @@ public class RouteServiceImpl implements RouteService {
             totalDuration += road.getDuration();
             totalPrice += road.getPrice();
 
-            pathData.add(0, routeData); // 将节点数据加入路径
+            RouteData.add(0, routeData); // 将节点数据加入路径
             node = node.getParent(); // 移动到父节点
         }
 
@@ -312,7 +312,7 @@ public class RouteServiceImpl implements RouteService {
         
 
         Route resultRoute = new Route();
-        resultRoute.setPathData(pathData); // 设置路径数据
+        resultRoute.setRouteData(RouteData); // 设置路径数据
         resultRoute.setDistance(String.valueOf(totalDistance));
         resultRoute.setDuration(String.valueOf(totalDuration));
         resultRoute.setPrice(String.valueOf(totalPrice));

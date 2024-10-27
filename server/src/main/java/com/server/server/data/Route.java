@@ -17,7 +17,7 @@ public class Route {
     private String distance;
     private String duration;
     private String price;    // 新增价格字段
-    private List<RouteData> pathData;  // 使用 RouteData 存储多个路径点
+    private List<RouteData> routeData;  // 使用 RouteData 存储多个路径点
     private String timestamp;
     private int priority;             // 初始优先级
     private LocalDateTime requestTime; // 请求进入系统的时间
@@ -27,19 +27,19 @@ public class Route {
     public int getUserId() {
         return userId;
     }
-     public String getPathDataJson() {
+     public String getRouteDataJson() {
         ObjectMapper objectMapper = new ObjectMapper();
         try {
-            return objectMapper.writeValueAsString(this.pathData);
+            return objectMapper.writeValueAsString(this.routeData);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             return null;
         }
     }
-    public void setPathDataFromJson(String pathDataJson) {
+    public void setRouteDataFromJson(String routeDataJson) {
         ObjectMapper objectMapper = new ObjectMapper();
         try {
-            this.pathData = objectMapper.readValue(pathDataJson, objectMapper.getTypeFactory().constructCollectionType(List.class, RouteData.class));
+            this.routeData = objectMapper.readValue(routeDataJson, objectMapper.getTypeFactory().constructCollectionType(List.class, RouteData.class));
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
@@ -48,12 +48,12 @@ public class Route {
         this.userId = userId;
     }
 
-    public List<RouteData> getPathData() {
-        return pathData;
+    public List<RouteData> getrouteData() {
+        return routeData;
     }
 
-    public void setPathData(List<RouteData> pathData) {
-        this.pathData = pathData;
+    public void setRouteData(List<RouteData> routeData) {
+        this.routeData = routeData;
     }
 
     public LocalDateTime getRequestTime() {
