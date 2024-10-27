@@ -346,23 +346,11 @@ methods: {
       timestamp: new Date().toISOString(), // Current timestamp
     };
 
-    // Send traffic data to backend
-    axios.post('http://localhost:8080/api/route/upload', routeData)
-      .then(response => console.log('Route data uploaded:', response))
-      .catch(error => console.error('Error uploading route data:', error));
-  },
-
-  getCurrentRouteStatus(segment) {
-    // Logic to determine current traffic status based on your criteria
-    // For example, you might have conditions based on speed or congestion level
-    if (segment.congestionLevel > 70) {
-      return 'red'; // High congestion
-    } else if (segment.congestionLevel > 30) {
-      return 'orange'; // Moderate congestion
-    } else {
-      return 'green'; // Low congestion
-    }
-  },
+     // Send traffic data to backend
+      axios.post('http://localhost:8080/api/route/upload', routeData)
+        .then(response => console.log('Route data uploaded:', response))
+        .catch(error => console.error('Error uploading route data:', error));
+    },
 
   toggleRoadStatus() {
     this.showRoadStatus = !this.showRoadStatus;
@@ -373,38 +361,51 @@ methods: {
     }
   },
 
-  displayRoadStatus() {
-    axios.get('http://localhost:8080/api/roads/status') // Adjust API endpoint as needed
-        .then(response => {
-          response.data.forEach(road => {
-            const color = this.getColorForStatus(road.status); // Get color based on status
-            const polyline = new AMap.Polyline({
-              path: road.coordinates, // Assuming coordinates are provided in the response
-              strokeColor: color,
-              strokeWeight: 6,
-            });
-            polyline.setMap(this.map);
-          });
-        })
-        .catch(error => console.error('Error fetching road status:', error));
-  },
+    displayRandomRoadStatus() {
+      const roads = this.generateRandomRoadSegments(5); // Generate up to 5 random road segments
+      roads.forEach(road => {
+        const polyline = new AMap.Polyline({
+          path: road.coordinates, // Assuming coordinates are provided as an array of [lng, lat]
+          strokeColor: road.color,
+          strokeWeight: 6,
+        });
+      polyline.setMap(this.map);
+      });
+    },
 
   clearRoadStatus() {
     this.map.clearMap(); // Clear all overlays from the map
   },
 
-  getColorForStatus(status) {
-    switch (status) {
-      case 'red':
-        return '#FF0000'; // Red for congested
-      case 'orange':
-        return '#FFA500'; // Orange for moderate
-      case 'green':
-        return '#008000'; // Green for clear
-      default:
-        return '#CCCCCC'; // Default color if status is unknown
+  generateRandomRoadSegments(numSegments) {
+    const segments = [];
+    for (let i = 0; i < numSegments; i++) {
+      const segment = {
+        coordinates: this.getRandomCoordinates(), // Generate random coordinates for this segment
+        color: this.getRandomColor(), // Assign a random color based on congestion level
+      };
+      segments.push(segment);
     }
+    return segments;
   },
+
+  getRandomCoordinates() {
+    // Generate random coordinates (example values)
+    const startLong = Math.random() * (116.5 - 116.3) + 116.3; // Random longitude
+    const startLat = Math.random() * (40.0 - 39.8) + 39.8; // Random latitude
+    const endLong = Math.random() * (116.5 - 116.3) + 116.3; // Random longitude
+    const endLat = Math.random() * (40.0 - 39.8) + 39.8; // Random latitude
+
+    return [
+      [startLong, startLat],
+      [endLong, endLat]
+    ];
+  },
+
+   getRandomColor() {
+      const colors = ['#FF0000', '#FFA500', '#008000']; // Red, Orange, Green
+      return colors[Math.floor(Math.random() * colors.length)];
+    },
   },
 };
 </script>
