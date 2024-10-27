@@ -17,8 +17,9 @@ public class RoadStatusWebSocketService {
     }
 
     public void notifyUser(int userId, long roadId, double durationAdjustment) {
-        messagingTemplate.convertAndSend("/user/" + userId + "/queue/roadUpdates", new RoadUpdateMessage(roadId, durationAdjustment));
+        messagingTemplate.convertAndSendToUser(String.valueOf(userId), "/queue/roadUpdates", new RoadUpdateMessage(roadId, durationAdjustment));
     }
+    
     
 
 }

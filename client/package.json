@@ -8,11 +8,13 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "@stomp/stompjs": "^7.0.0",
     "axios": "^1.7.7",
     "client": "file:",
     "core-js": "^3.8.3",
     "echarts": "^5.5.1",
     "element-ui": "^2.15.14",
+    "sockjs-client": "^1.6.1",
     "vue": "^2.6.14",
     "vue-echarts": "^6.0.0",
     "vue-router": "^3.5.1"

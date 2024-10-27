@@ -2,6 +2,9 @@ package com.server.server.data;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -24,7 +27,23 @@ public class Route {
     public int getUserId() {
         return userId;
     }
-
+     public String getPathDataJson() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(this.pathData);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+    public void setPathDataFromJson(String pathDataJson) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            this.pathData = objectMapper.readValue(pathDataJson, objectMapper.getTypeFactory().constructCollectionType(List.class, RouteData.class));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+    }
     public void setUserId(int userId) {
         this.userId = userId;
     }

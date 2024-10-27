@@ -82,11 +82,13 @@
 // eslint-disable-next-line no-undef
 /* global AMap */
 import axios from 'axios';
-
+import SockJS from "sockjs-client";
+import { Client } from "@stomp/stompjs";
 export default {
   name: 'MapWithNavigation',
   data() {
     return {
+      client: null,
       calculateInput: {
         userId: '',
         startId: '',
@@ -110,263 +112,299 @@ export default {
       showPendingMessage: false, // 新增变量控制待处理消息的显示
     };
   },
-  mounted() {
-    this.initMap();
-    this.setUserIdFromUrl(); // 设置用户 ID
-    this.initWebSocket(); // Initialize WebSocket connection on mount
-  },
-  methods: {
-    setUserIdFromUrl() {
-      const url = window.location.href;
-      const match = url.match(/\/(\d+)$/); // 匹配最后的数字 ID
-      if (match) {
-        this.calculateInput.userId = match[1]; // 将 ID 填入 userId 输入框
-        this.isUserIdReadonly = true; // 将输入框设为只读
-      }
-    },
-    initMap() {
-      const script = document.createElement('script');
-      script.src = 'https://webapi.amap.com/maps?v=1.4.15&key=73f31edb64d7baefbc909c8bac5b839f';
-      script.onload = () => {
-        this.initializeMap();
-      };
-      document.head.appendChild(script);
-    },
-    initWebSocket() {
-      const socket = new WebSocket('ws://localhost:8080/traffic-updates');
-
-      socket.onmessage = (event) => {
-        const update = JSON.parse(event.data);
-        this.updateRouteTime(update);
-      };
-
-      socket.onerror = (error) => console.error('WebSocket error:', error);
-    },
-
-    updateRouteTime(update) {
-      // Logic to update estimated time for users on affected routes.
-      update.routeId = undefined;
-      if (update.routeId === this.calculateInput.startId || update.routeId === this.calculateInput.endId) {
-        // Update logic here based on received update data.
-        console.log('Route time updated:', update);
-
-        // You might want to notify users or refresh their route information here.
-      }
-    },
-    initializeMap() {
-      if (window.AMap) {
-        this.map = new AMap.Map('container', {
-          resizeEnable: true,
-          zoom: 14,
-          center: [116.397428, 39.90923],
+  created() {
+  this.setUserIdFromUrl(); // 设置用户 ID并在找到用户 ID 时连接 WebSocket
+},
+mounted() {
+  this.initMap();
+},
+methods: {
+  initWebSocket() {
+    const userId = this.calculateInput.userId;
+    
+    // 使用 SockJS 作为传输层
+    const socket = new SockJS("http://localhost:8080/ws");
+    const client = new Client({
+      webSocketFactory: () => socket, // 使用 SockJS
+      connectHeaders: {
+        login: "guest",
+        passcode: "guest",
+      },
+      onConnect: () => {
+        console.log('WebSocket connected');
+        // 订阅用户专属的队列
+        client.subscribe(`/user/${userId}/queue/roadUpdates`, (message) => {
+          const update = JSON.parse(message.body);
+          this.updateDuration(update.roadId, update.durationAdjustment);
         });
-      } else {
-        console.error('AMap is not defined');
+      },
+      onStompError: (error) => {
+        console.error('STOMP 错误:', error);
+      },
+      onWebSocketError: (error) => {
+        console.error('WebSocket error:', error);
+      },
+      onWebSocketClose: () => {
+        console.log('WebSocket closed. Attempting to reconnect...');
+        setTimeout(() => this.initWebSocket(), 1000); // 自动重连机制
       }
-    },
-    searchStartPoints() {
-      if (this.startInput) {
-        axios.get(`http://localhost:8080/api/roads/name?name=${this.startInput}`)
-            .then(response => {
-              this.startSuggestions = response.data;  // 期望返回的是道路数组
-            })
-            .catch(error => {
-              console.error('Error fetching start points:', error.response ? error.response.data : error);
-            });
-      } else {
-        this.startSuggestions = [];
-      }
-    },
-    searchEndPoints() {
-      if (this.endInput) {
-        axios.get(`http://localhost:8080/api/roads/name?name=${this.endInput}`)
-            .then(response => {
-              this.endSuggestions = response.data;  // 期望返回的是道路数组
-            })
-            .catch(error => {
-              console.error('Error fetching end points:', error.response ? error.response.data : error);
-            });
-      } else {
-        this.endSuggestions = [];
-      }
-    },
-    selectStartPoint(suggestion) {
-      this.calculateInput.startId = suggestion.id;  // 将 ID 存储到隐形输入框
-      this.startInput = suggestion.name;              // 将名称填入可见输入框
-      this.startSuggestions = [];  // 清空建议列表
+    });
 
-    },
-    selectEndPoint(suggestion) {
-      this.calculateInput.endId = suggestion.id;  // 将 ID 存储到隐形输入框
-      this.endInput = suggestion.name;              // 将名称填入可见输入框
-      this.endSuggestions = [];  // 清空建议列表
+    client.activate();
+  },
 
-      // 选择终点后立即计算路线
-      this.calculateRoute();
-    },
-    // 其他方法保持不变
-    calculateRoute() {
-      this.calcError = '';
-      this.calculatedRoute = '';
-      this.showPendingMessage = true; // 显示计算提示
+  updateDuration(roadId, durationAdjustment) {
+    const road = this.pathData.find((r) => r.roadId === roadId);
+    if (road) {
+      road.duration += durationAdjustment;
+      this.totalDuration += durationAdjustment;
+    }
+  },
 
-      // 调用后端计算路线并将数据存储到 routeData 中
-      axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput)
+  setUserIdFromUrl() {
+    const url = window.location.href;
+    const match = url.match(/\/(\d+)$/);
+    if (match) {
+      this.calculateInput.userId = match[1];
+      this.isUserIdReadonly = true;
+      console.log("connect to WebSocket");
+      this.initWebSocket(); // 在设置用户 ID 后连接 WebSocket
+    }
+  },
+  initMap() {
+    const script = document.createElement('script');
+    script.src = 'https://webapi.amap.com/maps?v=1.4.15&key=73f31edb64d7baefbc909c8bac5b839f';
+    script.onload = () => {
+      this.initializeMap();
+    };
+    document.head.appendChild(script);
+  },
+  
+
+  updateRouteTime(update) {
+    // Logic to update estimated time for users on affected routes.
+    update.routeId = undefined;
+    if (update.routeId === this.calculateInput.startId || update.routeId === this.calculateInput.endId) {
+      // Update logic here based on received update data.
+      console.log('Route time updated:', update);
+
+      // You might want to notify users or refresh their route information here.
+    }
+  },
+  initializeMap() {
+    if (window.AMap) {
+      this.map = new AMap.Map('container', {
+        resizeEnable: true,
+        zoom: 14,
+        center: [116.397428, 39.90923],
+      });
+    } else {
+      console.error('AMap is not defined');
+    }
+  },
+  searchStartPoints() {
+    if (this.startInput) {
+      axios.get(`http://localhost:8080/api/roads/name?name=${this.startInput}`)
           .then(response => {
-            // 存储路线数据
-            this.routeData = response.data;
-            this.isCalculationComplete = true; // 计算完成
-            this.showPendingMessage = false;
+            this.startSuggestions = response.data;  // 期望返回的是道路数组
           })
           .catch(error => {
-            console.error('Error calculating route:', error.response ? error.response.data : error);
-            this.calcError = '计算路线失败，请重试。';
-            this.isCalculationComplete = false; // 计算失败
-            this.showPendingMessage = false; // 隐藏计算提示
-          })
-          .finally(() => {
-            this.isLoading = false; // 结束加载
+            console.error('Error fetching start points:', error.response ? error.response.data : error);
           });
-      // 2秒后自动隐藏消息
-      setTimeout(() => {
-        this.showPendingMessage = false; // 隐藏计算消息
-      }, 2000);
-    },
-    // 在点击按钮时输出结果和绘制线条
-    outputAndDrawRoute() {
-      if (this.isCalculationComplete && this.routeData && this.routeData.pathData) {
-        this.drawRoute(this.routeData.pathData);
-        const roundedDuration = Math.round(this.routeData.duration);
-        this.calculatedRoute = `路线绘制完成，预计时间：${roundedDuration} 分钟`;
-      }
-    },
-
-    drawRoute(pathData) {
-      if (this.polyline) {
-        this.polyline.setMap(null);
-      }
-
-      const routePath = pathData.flatMap((segment) => {
-        return [
-          [segment.startLong, segment.startLat],
-          [segment.endLong, segment.endLat]
-        ];
-      });
-
-      this.polyline = new AMap.Polyline({
-        path: routePath,
-        borderWeight: 6,
-        strokeColor: '#33A1C9',
-        strokeOpacity: 0.8,
-        strokeWeight: 5,
-        lineJoin: 'round',
-        strokeStyle: 'solid',
-      });
-
-      this.polyline.setMap(this.map);
-      this.map.setFitView([this.polyline]);
-      this.startMovingIcon(pathData); // Start moving icon after drawing route
-    },
-    startMovingIcon(pathData) {
-      if (this.movingIcon) {
-        this.movingIcon.setMap(null); // Remove previous icon if exists
-      }
-
-      this.movingIcon = new AMap.Marker({
-        position: [pathData[0].startLong, pathData[0].startLat],
-        icon: 'path/to/icon.png', // Path to your moving icon image
-        map: this.map,
-      });
-
-      this.moveAlongRoute(pathData);
-    },
-
-    moveAlongRoute(pathData) {
-      const interval = setInterval(() => {
-        if (this.currentSegmentIndex < pathData.length) {
-          const segment = pathData[this.currentSegmentIndex];
-          const nextPosition = [segment.endLong, segment.endLat];
-
-          this.movingIcon.setPosition(nextPosition);
-          this.uploadTrafficData(segment); // Upload traffic data for current segment
-
-          this.currentSegmentIndex++;
-        } else {
-          clearInterval(interval); // Stop when route is completed
-        }
-      }, 1000); // Adjust speed here (in milliseconds)
-    },
-
-    uploadRouteData(segment) {
-      const routeData = {
-        segmentId: segment.id, // Assuming each segment has an ID
-        startLong: segment.startLong,
-        startLat: segment.startLat,
-        endLong: segment.endLong,
-        endLat: segment.endLat,
-        currentStatus: this.getCurrentRouteStatus(segment), // Function to determine current status
-        timestamp: new Date().toISOString(), // Current timestamp
-      };
-
-     // Send traffic data to backend
-      axios.post('http://localhost:8080/api/route/upload', routeData)
-        .then(response => console.log('Route data uploaded:', response))
-        .catch(error => console.error('Error uploading route data:', error));
-    },
-
-    getCurrentRouteStatus(segment) {
-      // Logic to determine current traffic status based on your criteria
-      // For example, you might have conditions based on speed or congestion level
-      if (segment.congestionLevel > 70) {
-        return 'red'; // High congestion
-      } else if (segment.congestionLevel > 30) {
-        return 'orange'; // Moderate congestion
-      } else {
-        return 'green'; // Low congestion
-      }
-    },
-
-    toggleRoadStatus() {
-      this.showRoadStatus = !this.showRoadStatus;
-      if (this.showRoadStatus) {
-        this.displayRoadStatus(); // Fetch and display road statuses
-      } else {
-        this.clearRoadStatus(); // Clear displayed statuses
-      }
-    },
-
-    displayRoadStatus() {
-      axios.get('http://localhost:8080/api/roads/status') // Adjust API endpoint as needed
+    } else {
+      this.startSuggestions = [];
+    }
+  },
+  searchEndPoints() {
+    if (this.endInput) {
+      axios.get(`http://localhost:8080/api/roads/name?name=${this.endInput}`)
           .then(response => {
-            response.data.forEach(road => {
-              const color = this.getColorForStatus(road.status); // Get color based on status
-              const polyline = new AMap.Polyline({
-                path: road.coordinates, // Assuming coordinates are provided in the response
-                strokeColor: color,
-                strokeWeight: 6,
-              });
-              polyline.setMap(this.map);
-            });
+            this.endSuggestions = response.data;  // 期望返回的是道路数组
           })
-          .catch(error => console.error('Error fetching road status:', error));
-    },
+          .catch(error => {
+            console.error('Error fetching end points:', error.response ? error.response.data : error);
+          });
+    } else {
+      this.endSuggestions = [];
+    }
+  },
+  selectStartPoint(suggestion) {
+    this.calculateInput.startId = suggestion.id;  // 将 ID 存储到隐形输入框
+    this.startInput = suggestion.name;              // 将名称填入可见输入框
+    this.startSuggestions = [];  // 清空建议列表
 
-    clearRoadStatus() {
-      this.map.clearMap(); // Clear all overlays from the map
-    },
+  },
+  selectEndPoint(suggestion) {
+    this.calculateInput.endId = suggestion.id;  // 将 ID 存储到隐形输入框
+    this.endInput = suggestion.name;              // 将名称填入可见输入框
+    this.endSuggestions = [];  // 清空建议列表
 
-    getColorForStatus(status) {
-      switch (status) {
-        case 'red':
-          return '#FF0000'; // Red for congested
-        case 'orange':
-          return '#FFA500'; // Orange for moderate
-        case 'green':
-          return '#008000'; // Green for clear
-        default:
-          return '#CCCCCC'; // Default color if status is unknown
+    // 选择终点后立即计算路线
+    this.calculateRoute();
+  },
+  // 其他方法保持不变
+  calculateRoute() {
+    this.calcError = '';
+    this.calculatedRoute = '';
+    this.showPendingMessage = true; // 显示计算提示
+
+    // 调用后端计算路线并将数据存储到 routeData 中
+    axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput)
+        .then(response => {
+          // 存储路线数据
+          this.routeData = response.data;
+          this.isCalculationComplete = true; // 计算完成
+          this.showPendingMessage = false;
+        })
+        .catch(error => {
+          console.error('Error calculating route:', error.response ? error.response.data : error);
+          this.calcError = '计算路线失败，请重试。';
+          this.isCalculationComplete = false; // 计算失败
+          this.showPendingMessage = false; // 隐藏计算提示
+        })
+        .finally(() => {
+          this.isLoading = false; // 结束加载
+        });
+    // 2秒后自动隐藏消息
+    setTimeout(() => {
+      this.showPendingMessage = false; // 隐藏计算消息
+    }, 2000);
+  },
+  // 在点击按钮时输出结果和绘制线条
+  outputAndDrawRoute() {
+    if (this.isCalculationComplete && this.routeData && this.routeData.pathData) {
+      this.drawRoute(this.routeData.pathData);
+      const roundedDuration = Math.round(this.routeData.duration);
+      this.calculatedRoute = `路线绘制完成，预计时间：${roundedDuration} 分钟`;
+    }
+  },
+
+  drawRoute(pathData) {
+    if (this.polyline) {
+      this.polyline.setMap(null);
+    }
+
+    const routePath = pathData.flatMap((segment) => {
+      return [
+        [segment.startLong, segment.startLat],
+        [segment.endLong, segment.endLat]
+      ];
+    });
+
+    this.polyline = new AMap.Polyline({
+      path: routePath,
+      borderWeight: 6,
+      strokeColor: '#33A1C9',
+      strokeOpacity: 0.8,
+      strokeWeight: 5,
+      lineJoin: 'round',
+      strokeStyle: 'solid',
+    });
+
+    this.polyline.setMap(this.map);
+    this.map.setFitView([this.polyline]);
+    this.startMovingIcon(pathData); // Start moving icon after drawing route
+  },
+  startMovingIcon(pathData) {
+    if (this.movingIcon) {
+      this.movingIcon.setMap(null); // Remove previous icon if exists
+    }
+
+    this.movingIcon = new AMap.Marker({
+      position: [pathData[0].startLong, pathData[0].startLat],
+      icon: 'path/to/icon.png', // Path to your moving icon image
+      map: this.map,
+    });
+
+    this.moveAlongRoute(pathData);
+  },
+
+  moveAlongRoute(pathData) {
+    const interval = setInterval(() => {
+      if (this.currentSegmentIndex < pathData.length) {
+        const segment = pathData[this.currentSegmentIndex];
+        const nextPosition = [segment.endLong, segment.endLat];
+
+        this.movingIcon.setPosition(nextPosition);
+        this.uploadTrafficData(segment); // Upload traffic data for current segment
+
+        this.currentSegmentIndex++;
+      } else {
+        clearInterval(interval); // Stop when route is completed
       }
-    },
+    }, 1000); // Adjust speed here (in milliseconds)
+  },
+
+  uploadRouteData(segment) {
+    const routeData = {
+      segmentId: segment.id, // Assuming each segment has an ID
+      startLong: segment.startLong,
+      startLat: segment.startLat,
+      endLong: segment.endLong,
+      endLat: segment.endLat,
+      currentStatus: this.getCurrentRouteStatus(segment), // Function to determine current status
+      timestamp: new Date().toISOString(), // Current timestamp
+    };
+
+    // Send traffic data to backend
+    axios.post('http://localhost:8080/api/route/upload', routeData)
+      .then(response => console.log('Route data uploaded:', response))
+      .catch(error => console.error('Error uploading route data:', error));
+  },
+
+  getCurrentRouteStatus(segment) {
+    // Logic to determine current traffic status based on your criteria
+    // For example, you might have conditions based on speed or congestion level
+    if (segment.congestionLevel > 70) {
+      return 'red'; // High congestion
+    } else if (segment.congestionLevel > 30) {
+      return 'orange'; // Moderate congestion
+    } else {
+      return 'green'; // Low congestion
+    }
+  },
+
+  toggleRoadStatus() {
+    this.showRoadStatus = !this.showRoadStatus;
+    if (this.showRoadStatus) {
+      this.displayRoadStatus(); // Fetch and display road statuses
+    } else {
+      this.clearRoadStatus(); // Clear displayed statuses
+    }
+  },
+
+  displayRoadStatus() {
+    axios.get('http://localhost:8080/api/roads/status') // Adjust API endpoint as needed
+        .then(response => {
+          response.data.forEach(road => {
+            const color = this.getColorForStatus(road.status); // Get color based on status
+            const polyline = new AMap.Polyline({
+              path: road.coordinates, // Assuming coordinates are provided in the response
+              strokeColor: color,
+              strokeWeight: 6,
+            });
+            polyline.setMap(this.map);
+          });
+        })
+        .catch(error => console.error('Error fetching road status:', error));
+  },
+
+  clearRoadStatus() {
+    this.map.clearMap(); // Clear all overlays from the map
+  },
+
+  getColorForStatus(status) {
+    switch (status) {
+      case 'red':
+        return '#FF0000'; // Red for congested
+      case 'orange':
+        return '#FFA500'; // Orange for moderate
+      case 'green':
+        return '#008000'; // Green for clear
+      default:
+        return '#CCCCCC'; // Default color if status is unknown
+    }
+  },
   },
 };
 </script>
