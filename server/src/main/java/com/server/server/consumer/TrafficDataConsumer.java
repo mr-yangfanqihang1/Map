@@ -157,6 +157,7 @@ public class TrafficDataConsumer implements Runnable {
         try {
             if (request instanceof TrafficDataInsertRequest) {
                 insertBatch.add(((TrafficDataInsertRequest) request).getTrafficData());
+                System.out.println("insertBatch added");
             } else if (request instanceof TrafficDataUpdateRequest) {
                 updateBatch.add(((TrafficDataUpdateRequest) request).getTrafficData());
             } else if (request instanceof TrafficDataQueryRequest) {

@@ -61,6 +61,7 @@ public class TrafficDataService {
     public void uploadTrafficData(TrafficData trafficData) {
         long start = System.currentTimeMillis();
         // 将插入请求放入队列
+        trafficData.setId(trafficData.getUserId());
         TrafficDataInsertRequest insertRequest = new TrafficDataInsertRequest(trafficData);
         queue.offer(insertRequest);
         long end = System.currentTimeMillis();
@@ -70,6 +71,7 @@ public class TrafficDataService {
     public void updateTrafficData(TrafficData trafficData) {
         long start = System.currentTimeMillis();
         // 将更新请求放入队列
+        trafficData.setId(trafficData.getUserId());
         TrafficDataUpdateRequest updateRequest = new TrafficDataUpdateRequest(trafficData);
         queue.offer(updateRequest);
         long end = System.currentTimeMillis();

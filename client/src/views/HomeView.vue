@@ -82,11 +82,13 @@
 // eslint-disable-next-line no-undef
 /* global AMap */
 import axios from 'axios';
-
+import SockJS from "sockjs-client";
+import { Client } from "@stomp/stompjs";
 export default {
   name: 'MapWithNavigation',
   data() {
     return {
+      client:null,
       calculateInput: {
         userId: '',
         startId: '',
@@ -110,10 +112,11 @@ export default {
       showPendingMessage: false, // 新增变量控制待处理消息的显示
     };
   },
+  created() {
+    this.setUserIdFromUrl(); // 设置用户 ID并在找到用户 ID 时连接 WebSocket
+  },
   mounted() {
     this.initMap();
-    this.setUserIdFromUrl(); // 设置用户 ID
-    this.initWebSocket(); // Initialize WebSocket connection on mount
   },
   methods: {
     initWebSocket() {
@@ -132,6 +135,7 @@ export default {
         // 订阅用户专属的队列
         client.subscribe(`/user/${userId}/queue/roadUpdates`, (message) => {
           const update = JSON.parse(message.body);
+          console.log(update);
           this.updateDuration(update.roadId, update.durationAdjustment);
         });
       },
@@ -175,16 +179,6 @@ export default {
         this.initializeMap();
       };
       document.head.appendChild(script);
-    },
-    initWebSocket() {
-      const socket = new WebSocket('ws://localhost:8080/traffic-updates');
-
-      socket.onmessage = (event) => {
-        const update = JSON.parse(event.data);
-        this.updateRouteTime(update);
-      };
-
-      socket.onerror = (error) => console.error('WebSocket error:', error);
     },
 
     updateRouteTime(update) {
