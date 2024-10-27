@@ -355,18 +355,18 @@ export default {
       this.map.clearMap(); // Clear all overlays from the map
     },
 
-    getColorForStatus(status) {
-      switch (status) {
-        case 'red':
-          return '#FF0000'; // Red for congested
-        case 'orange':
-          return '#FFA500'; // Orange for moderate
-        case 'green':
-          return '#008000'; // Green for clear
-        default:
-          return '#CCCCCC'; // Default color if status is unknown
-      }
-    },
+  getColorForStatus(status) {
+    switch (status) {
+      case 'red':
+        return '#FF0000'; // Red for congested
+      case 'orange':
+        return '#FFA500'; // Orange for moderate
+      case 'green':
+        return '#008000'; // Green for clear
+      default:
+        return '#CCCCCC'; // Default color if status is unknown
+    }
+  },
   },
 };
 </script>
