@@ -282,11 +282,10 @@ export default {
         this.drawRoute(this.routeData.routeData);
         console.log(this.routeData);
         const roundedDuration = Math.round(this.routeData.duration);
-        const roundedDistance = Math.round(this.routeData.distance);
-        const roundedPrice = Math.round(this.routeData.price);
-        this.calculatedRoute = `全程${roundedDistance}公里，预计时间：${roundedDuration} 分钟，共花费${roundedPrice} 元`;
+        this.calculatedRoute = `路线绘制完成，预计时间：${roundedDuration} 分钟`;
       }
     },
+
     drawRoute(routeData) {
       this.pathData = routeData; // Store path data
 
