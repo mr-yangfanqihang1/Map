@@ -280,6 +280,7 @@ export default {
     outputAndDrawRoute() {
       if (this.isCalculationComplete && this.routeData && this.routeData.routeData) {
         this.drawRoute(this.routeData.routeData);
+        console.log(this.routeData);
         const roundedDuration = Math.round(this.routeData.duration);
         const roundedDistance = Math.round(this.routeData.distance);
         const roundedPrice = Math.round(this.routeData.price);
@@ -287,7 +288,7 @@ export default {
       }
     },
     drawRoute(routeData) {
-      this.routeData = routeData; // Store path data
+      this.pathData = routeData; // Store path data
 
       if (this.polyline) {
         this.polyline.setMap(null);
