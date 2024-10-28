@@ -93,9 +93,6 @@ export default {
         userId: '',
         startId: '',
         endId: '',
-        showRoadStatus: false,
-        movingIcon: null, // Store moving icon reference
-        currentSegmentIndex: 0, // Track current segment index for movement
       },
       startInput: '',  // 用于显示用户输入的起点名称
       endInput: '',    // 用于显示用户输入的终点名称
@@ -110,6 +107,12 @@ export default {
       map: null,
       polyline: null,
       showPendingMessage: false, // 新增变量控制待处理消息的显示
+      showRoadStatus: false,
+      movingIcon: null,
+      currentSegmentIndex: 0,
+      pathData: [], // Store path data for movement
+      isMoving: false,
+      moveInterval: null, // Interval for moving the dot
     };
   },
   created() {
@@ -202,6 +205,7 @@ export default {
         console.error('AMap is not defined');
       }
     },
+
     searchStartPoints() {
       if (this.startInput) {
         axios.get(`http://localhost:8080/api/roads/name?name=${this.startInput}`)
@@ -216,6 +220,7 @@ export default {
         this.startSuggestions = [];
       }
     },
+
     searchEndPoints() {
       if (this.endInput) {
         axios.get(`http://localhost:8080/api/roads/name?name=${this.endInput}`)
@@ -281,6 +286,8 @@ export default {
     },
 
     drawRoute(routeData) {
+      this.routeData = routeData; // Store path data
+
       if (this.polyline) {
         this.polyline.setMap(null);
       }
@@ -304,40 +311,54 @@ export default {
 
       this.polyline.setMap(this.map);
       this.map.setFitView([this.polyline]);
-      this.startMovingIcon(routeData); // Start moving icon after drawing route
+
+      this.startMovingIcon(); // Start moving icon after drawing route
     },
-    startMovingIcon(routeData) {
+
+    startMovingIcon() {
       if (this.movingIcon) {
         this.movingIcon.setMap(null); // Remove previous icon if exists
       }
 
-      this.movingIcon = new AMap.Marker({
-        position: [routeData[0].startLong, routeData[0].startLat],
-        icon: 'path/to/icon.png', // Path to your moving icon image
+      const startPosition = [this.routeData[0].startLong, this.routeData[0].startLat];
+      this.movingIcon = new AMap.Circle({
+        center: startPosition,
+        radius: 5, // Radius of the circle
+        fillColor: '#0000FF', // Fill color (blue)
+        strokeColor: '#0000FF', // Stroke color (blue)
+        strokeWeight: 1,
         map: this.map,
       });
 
-      this.moveAlongRoute(routeData);
+      this.isMoving = true; // Set moving state
+      this.moveAlongRoute();
     },
 
-    moveAlongRoute(routeData) {
-      const interval = setInterval(() => {
-        if (this.currentSegmentIndex < routeData.length) {
-          const segment = routeData[this.currentSegmentIndex];
-          const nextPosition = [segment.endLong, segment.endLat];
+    moveAlongRoute() {
+      const speed = 2000; 
 
-          this.movingIcon.setPosition(nextPosition);
-          this.uploadTrafficData(segment); // Upload traffic data for current segment
+      this.moveInterval = setInterval(() => {
+      if (!this.isMoving || this.currentSegmentIndex >= this.routeData.length) {
+        clearInterval(this.moveInterval); // Stop if not moving or end of route
+        return;
+      }
 
-          this.currentSegmentIndex++;
-        } else {
-          clearInterval(interval); // Stop when route is completed
-        }
-      }, 1000); // Adjust speed here (in milliseconds)
+      const segment = this.routeData[this.currentSegmentIndex];
+      const nextPosition = [segment.endLong, segment.endLat];
+
+      this.movingIcon.setCenter(nextPosition); // Move blue dot to next position
+      this.uploadTrafficData(segment); // Upload traffic data for current segment
+
+      // Move to the next segment after a delay
+      setTimeout(() => {
+        this.currentSegmentIndex++;
+      }, speed); // Delay between segments (adjust as needed)
+      
+    }, speed); // Update position every `speed` milliseconds
     },
 
-    uploadRouteData(segment) {
-      const routeData = {
+    uploadTrafficData(segment) {
+      const trafficData = {
         segmentId: segment.id, // Assuming each segment has an ID
         startLong: segment.startLong,
         startLat: segment.startLat,
@@ -347,10 +368,13 @@ export default {
         timestamp: new Date().toISOString(), // Current timestamp
       };
 
-    // Send traffic data to backend
-    axios.post('http://localhost:8080/api/route/upload', routeData)
-      .then(response => console.log('Route data uploaded:', response))
-      .catch(error => console.error('Error uploading route data:', error));
+      let endpoint = (this.currentSegmentIndex === 0) 
+      ? 'http://localhost:8080/api/traffic/upload' 
+      : 'http://localhost:8080/api/traffic/update';
+
+    axios.post(endpoint, trafficData)
+      .then(response => console.log('Traffic data sent:', response))
+      .catch(error => console.error('Error sending traffic data:', error));
   },
 
   getCurrentRouteStatus(segment) {
