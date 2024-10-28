@@ -286,8 +286,8 @@ export default {
       }
     },
 
-    drawRoute(routeData) {
-      this.pathData = routeData; // Store path data
+    drawRoute(pathData) {
+      this.pathData = pathData; // Store path data
 
       if (this.polyline) {
         this.polyline.setMap(null);
@@ -321,7 +321,7 @@ export default {
         this.movingIcon.setMap(null); // Remove previous icon if exists
       }
 
-      const startPosition = [this.routeData[0].startLong, this.routeData[0].startLat];
+      const startPosition = [this.pathData[0].startLong, this.pathData[0].startLat];
       this.movingIcon = new AMap.Circle({
         center: startPosition,
         radius: 5, // Radius of the circle
@@ -339,12 +339,12 @@ export default {
       const speed = 2000; 
 
       this.moveInterval = setInterval(() => {
-      if (!this.isMoving || this.currentSegmentIndex >= this.routeData.length) {
+      if (!this.isMoving || this.currentSegmentIndex >= this.pathData.length) {
         clearInterval(this.moveInterval); // Stop if not moving or end of route
         return;
       }
 
-      const segment = this.routeData[this.currentSegmentIndex];
+      const segment = this.pathData[this.currentSegmentIndex];
       const nextPosition = [segment.endLong, segment.endLat];
 
       this.movingIcon.setCenter(nextPosition); // Move blue dot to next position
