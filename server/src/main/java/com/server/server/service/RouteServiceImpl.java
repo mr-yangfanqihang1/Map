@@ -28,11 +28,14 @@ public class RouteServiceImpl implements RouteService {
     @Autowired
     private UserService userService;
     @Autowired
+    private SmartService smartService;
+    @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     private static final String REDIS_ROUTE_PREFIX = "route:";
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final int PRIORITY_LEVELS = 5; // 定义 5 个优先级队列
     private final List<Queue<Route>> priorityQueues = new ArrayList<>(PRIORITY_LEVELS);
+    boolean isStatus = false;
 
     // 初始化多个优先级队列
     public RouteServiceImpl() {
@@ -51,6 +54,7 @@ public class RouteServiceImpl implements RouteService {
     public Route getRouteById(int id) {
         return routeMapper.getRouteById(id);
     }
+
 
     private void adjustDynamicPriority(Route route) {
         LocalDateTime now = LocalDateTime.now();
@@ -123,11 +127,18 @@ public class RouteServiceImpl implements RouteService {
         Map<String, Double> weights = getUserWeights(userService.getPreferences(route.getUserId()));
 
         // 从redis获取起始和结束 Road
-        Road startRoad = roadService.getRoadById(route.getStartId());
-        Road endRoad = roadService.getRoadById(route.getEndId());
-
+        Road startRoad = new Road();
+        Road endRoad = new Road();
+        isStatus = SmartService.getIsStatus();
+        if(isStatus == false) {
+            startRoad = roadService.getRoadById(route.getStartId());
+            endRoad = roadService.getRoadById(route.getEndId());
+        }else if(isStatus == true) {
+            startRoad = roadService.getGreenRoadById(route.getStartId());
+            endRoad = roadService.getGreenRoadById(route.getEndId());
+        }
         // 使用用户权重执行 A* 算法
-        Route calculatedRoute = aStarSearch(startRoad, endRoad, weights, route);
+        Route calculatedRoute = aStarSearch(startRoad, endRoad, weights, route,isStatus);
 
         if (calculatedRoute == null) {
             System.out.println("未找到路径。");
@@ -182,7 +193,7 @@ public class RouteServiceImpl implements RouteService {
         return false;
     }
 
-    private Route aStarSearch(Road startRoad, Road endRoad, Map<String, Double> weights, Route route) {
+    private Route aStarSearch(Road startRoad, Road endRoad, Map<String, Double> weights, Route route, boolean isStatus) {
         List<RouteData> RouteData = new ArrayList<>(); // 用于存储结果路径数据
         
         PriorityQueue<Node> openList = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
@@ -194,57 +205,108 @@ public class RouteServiceImpl implements RouteService {
             Node startNode = new Node(startRoad, null, 0, heuristic(startRoad, endRoad));
             openList.add(startNode);
         }
-        // A* 主循环
-        while (!openList.isEmpty()) {
-            Node currentNode = openList.poll();  // 取出优先队列中的节点
-            //System.out.println("当前节点: " + currentNode.getRoad().getName());
+        if(isStatus ==false) {
+            // A* 主循环
+            while (!openList.isEmpty()) {
+                Node currentNode = openList.poll();  // 取出优先队列中的节点
+                //System.out.println("当前节点: " + currentNode.getRoad().getName());
 
-            // 如果到达终点，构建路径
-            if (isGoal(currentNode, endRoad)) {
-                //System.out.println("找到目标节点: " + currentNode.getRoad().getName());
-                return constructRoute(currentNode, RouteData,route);  // 构建路径
-            }
-
-            // 将当前节点加入关闭列表
-            closedList.add(currentNode.getRoad());
-
-            // 遍历邻居节点
-            for (Road neighbor : getNeighbors(currentNode.getRoad())) {
-                // 如果邻居节点在关闭列表中，跳过它
-                if (closedList.contains(neighbor)) {
-                   // System.out.println("邻居已在关闭列表中: " + neighbor.getName());
-                    continue;
+                // 如果到达终点，构建路径
+                if (isGoal(currentNode, endRoad)) {
+                    //System.out.println("找到目标节点: " + currentNode.getRoad().getName());
+                    return constructRoute(currentNode, RouteData, route);  // 构建路径
                 }
 
-                // 检查邻居节点的 duration 值是否正确
-                //System.out.println("邻居道路: " + neighbor.getName() + ", 距离: " + neighbor.getDistance() + ", 时长: " + neighbor.getDuration());
+                // 将当前节点加入关闭列表
+                closedList.add(currentNode.getRoad());
 
-                double cost = getCost(neighbor, weights);
-                Node neighborNode = new Node(neighbor, currentNode, currentNode.getG() + cost, 0);
-                neighborNode.setH(heuristic(neighbor, endRoad));
+                // 遍历邻居节点
+                for (Road neighbor : getNeighbors(currentNode.getRoad())) {
+                    // 如果邻居节点在关闭列表中，跳过它
+                    if (closedList.contains(neighbor)) {
+                        // System.out.println("邻居已在关闭列表中: " + neighbor.getName());
+                        continue;
+                    }
 
-                // 如果邻居不在开放列表中，或者发现一个更优路径，添加到开放列表
-                if (!openList.contains(neighborNode)) {
-                    openList.add(neighborNode);
-                   // System.out.println("将邻居添加到开放列表: " + neighbor.getName());
-                } else {
-                    // 更新现有邻居节点的优先级（如果有更优的路径）
-                    for (Node openNode : openList) {
-                        if (openNode.getRoad().equals(neighbor) && neighborNode.getG() < openNode.getG()) {
-                            openList.remove(openNode);  // 移除旧的节点
-                            openList.add(neighborNode);  // 添加新的更优节点
-                            //System.out.println("更新开放列表中的邻居: " + neighbor.getName());
-                            break;
+                    // 检查邻居节点的 duration 值是否正确
+                    //System.out.println("邻居道路: " + neighbor.getName() + ", 距离: " + neighbor.getDistance() + ", 时长: " + neighbor.getDuration());
+
+                    double cost = getCost(neighbor, weights);
+                    Node neighborNode = new Node(neighbor, currentNode, currentNode.getG() + cost, 0);
+                    neighborNode.setH(heuristic(neighbor, endRoad));
+
+                    // 如果邻居不在开放列表中，或者发现一个更优路径，添加到开放列表
+                    if (!openList.contains(neighborNode)) {
+                        openList.add(neighborNode);
+                        // System.out.println("将邻居添加到开放列表: " + neighbor.getName());
+                    } else {
+                        // 更新现有邻居节点的优先级（如果有更优的路径）
+                        for (Node openNode : openList) {
+                            if (openNode.getRoad().equals(neighbor) && neighborNode.getG() < openNode.getG()) {
+                                openList.remove(openNode);  // 移除旧的节点
+                                openList.add(neighborNode);  // 添加新的更优节点
+                                //System.out.println("更新开放列表中的邻居: " + neighbor.getName());
+                                break;
+                            }
                         }
                     }
                 }
+                if (shouldPause()) {
+                    saveStateToRedis(String.valueOf(route.getUserId()), openList, closedList, currentNode);
+                    return null; // 暂时中断
+                }
             }
-            if (shouldPause()) {
-                saveStateToRedis(String.valueOf(route.getUserId()), openList, closedList, currentNode);
-                return null; // 暂时中断
+        }else if(isStatus == true){// A* 主循环
+            while (!openList.isEmpty()) {
+                Node currentNode = openList.poll();  // 取出优先队列中的节点
+                //System.out.println("当前节点: " + currentNode.getRoad().getName());
+
+                // 如果到达终点，构建路径
+                if (isGoal(currentNode, endRoad)) {
+                    //System.out.println("找到目标节点: " + currentNode.getRoad().getName());
+                    return constructRoute(currentNode, RouteData, route);  // 构建路径
+                }
+
+                // 将当前节点加入关闭列表
+                closedList.add(currentNode.getRoad());
+
+                // 遍历邻居节点
+                for (Road neighbor : getGreenNeighbors(currentNode.getRoad())) {
+                    // 如果邻居节点在关闭列表中，跳过它
+                    if (closedList.contains(neighbor)) {
+                        // System.out.println("邻居已在关闭列表中: " + neighbor.getName());
+                        continue;
+                    }
+
+                    // 检查邻居节点的 duration 值是否正确
+                    //System.out.println("邻居道路: " + neighbor.getName() + ", 距离: " + neighbor.getDistance() + ", 时长: " + neighbor.getDuration());
+
+                    double cost = getCost(neighbor, weights);
+                    Node neighborNode = new Node(neighbor, currentNode, currentNode.getG() + cost, 0);
+                    neighborNode.setH(heuristic(neighbor, endRoad));
+
+                    // 如果邻居不在开放列表中，或者发现一个更优路径，添加到开放列表
+                    if (!openList.contains(neighborNode)) {
+                        openList.add(neighborNode);
+                        // System.out.println("将邻居添加到开放列表: " + neighbor.getName());
+                    } else {
+                        // 更新现有邻居节点的优先级（如果有更优的路径）
+                        for (Node openNode : openList) {
+                            if (openNode.getRoad().equals(neighbor) && neighborNode.getG() < openNode.getG()) {
+                                openList.remove(openNode);  // 移除旧的节点
+                                openList.add(neighborNode);  // 添加新的更优节点
+                                //System.out.println("更新开放列表中的邻居: " + neighbor.getName());
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (shouldPause()) {
+                    saveStateToRedis(String.valueOf(route.getUserId()), openList, closedList, currentNode);
+                    return null; // 暂时中断
+                }
             }
         }
-
         System.out.println("未找到路径。");
         return null; // 如果未找到路径
     }
@@ -323,6 +385,11 @@ public class RouteServiceImpl implements RouteService {
     private List<Road> getNeighbors(Road currentRoad) {
         //System.out.println("Getting neighbors for road: " + currentRoad.getName());
         return roadService.getNeighbors(currentRoad.getId()); // 假设方法返回相邻道路的列表
+    }
+
+    private List<Road> getGreenNeighbors(Road currentRoad) {
+        //System.out.println("Getting neighbors for road: " + currentRoad.getName());
+        return roadService.getGreenNeighbors(currentRoad.getId()); // 假设方法返回相邻道路的列表
     }
     private double heuristic(Road currentRoad, Road endRoad) {
         double deltaX = Math.abs(currentRoad.getStartLat() - endRoad.getStartLat());

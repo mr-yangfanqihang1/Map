@@ -19,6 +19,8 @@ public interface RoadMapper {
     // 根据道路 ID 查询道路信息
     @Select("SELECT * FROM roads WHERE id = #{id}")
     Road getRoadById(long id);
+    @Select("SELECT * FROM roads WHERE id = #{id} AND status = 'green'")
+    Road getGreenRoadById(long id);
 
     // 根据道路名称查询道路信息
     @Select("SELECT * FROM roads WHERE name = #{name}")
@@ -28,6 +30,9 @@ public interface RoadMapper {
     // 查询所有道路信息
     @Select("SELECT * FROM roads")
     List<Road> getAllRoads();
+
+    @Select("SELECT * FROM roads WHERE status = 'green'")
+    List<Road> getGreenRoads();
 
 
     // 根据道路 ID 查询道路的最大负载

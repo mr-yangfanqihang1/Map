@@ -117,6 +117,23 @@ public class RoadService {
         }
     }
 
+    public Road getGreenRoadById(long id) {
+        String key = "roadData:roadId:" + id;
+        Road road = (Road) valueOps.get(key);
+        if (road != null) {
+            // System.out.println("Get road data from Redis: roadId: " + id);
+            return road;
+        } else {
+            //System.out.println("Road data not found in Redis for roadId: " + id);
+            // 如果 Redis 中没有，则从数据库查询并缓存
+            road = roadMapper.getGreenRoadById(id);
+            if (road != null) {
+                valueOps.set(key, road);  // 缓存到 Redis
+            }
+            return road;
+        }
+    }
+
     // 获取相邻道路信息
     public List<Road> getNeighbors(long id) {
         String key = "roadData:roadId:" + id;
@@ -141,6 +158,29 @@ public class RoadService {
         }
     }
 
+    public List<Road> getGreenNeighbors(long id) {
+        String key = "roadData:roadId:" + id;
+        Road road = (Road) valueOps.get(key);  // 从 Redis 获取 road 对象
+        try {
+            if (road != null) {
+                //System.out.println("Get road data from Redis: roadId: " + id);
+                return getGreenNeighborsByRoad(road);
+            } else {
+                //System.out.println("Road data not found in Redis for roadId: " + id);
+                // 如果 Redis 中没有数据，从数据库中查询 Road 对象
+                Road dbRoad = getRoadById(id);
+                if (dbRoad != null) {
+                    return getGreenNeighborsByRoad(dbRoad);
+                }
+                return new ArrayList<>();  // 如果没有相邻道路，返回空列表
+            }
+        } catch (Exception e) {
+            System.out.println("Error getting neighbor road objects for roadId: " + id);
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
+
     // 根据给定 Road 获取其相邻的道路
     private List<Road> getNeighborsByRoad(Road road) {
         List<Road> neighbors = new ArrayList<>();
@@ -149,6 +189,21 @@ public class RoadService {
             for (String nextRoadId : nextRoadIds.split(",")) {
                 long neighborId = Long.parseLong(nextRoadId.trim());
                 Road neighborRoad = getRoadById(neighborId);
+                if (neighborRoad != null) {
+                    neighbors.add(neighborRoad);
+                }
+            }
+        }
+        return neighbors;
+    }
+
+    private List<Road> getGreenNeighborsByRoad(Road road) {
+        List<Road> neighbors = new ArrayList<>();
+        String nextRoadIds = road.getNextRoadId();
+        if (nextRoadIds != null && !nextRoadIds.isEmpty()) {
+            for (String nextRoadId : nextRoadIds.split(",")) {
+                long neighborId = Long.parseLong(nextRoadId.trim());
+                Road neighborRoad = getGreenRoadById(neighborId);
                 if (neighborRoad != null) {
                     neighbors.add(neighborRoad);
                 }

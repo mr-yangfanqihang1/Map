@@ -26,6 +26,7 @@ public interface RouteMapper {
         })
     Route getRouteById(int id);
 
+
     // 获取 Road 通过 ID
     @Select("SELECT * FROM roads WHERE id = #{id}")
     Road getRoadById(long id);
@@ -36,6 +37,9 @@ public interface RouteMapper {
     // 获取邻居 Road
     @Select("SELECT * FROM roads WHERE FIND_IN_SET(id, (SELECT next_roadid FROM roads WHERE id = #{roadId}))")
     List<Road> getNeighbors(long roadId);
+
+    @Select("SELECT * FROM roads WHERE FIND_IN_SET(id, (SELECT next_roadid FROM roads WHERE id = #{roadId} AND status = 'green'))")
+    List<Road> getGreenNeighbors(long roadId);
 
     // 根据起始和结束 ID 查找路径
     @Select("SELECT * FROM routes WHERE start_id = #{startId} AND end_id = #{endId}")
