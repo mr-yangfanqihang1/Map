@@ -276,10 +276,11 @@ export default {
       if (this.isCalculationComplete && this.routeData && this.routeData.routeData) {
         this.drawRoute(this.routeData.routeData);
         const roundedDuration = Math.round(this.routeData.duration);
-        this.calculatedRoute = `路线绘制完成，预计时间：${roundedDuration} 分钟`;
+        const roundedDistance = Math.round(this.routeData.distance);
+        const roundedPrice = Math.round(this.routeData.price);
+        this.calculatedRoute = `全程${roundedDistance}公里，预计时间：${roundedDuration} 分钟，共花费${roundedPrice} 元`;
       }
     },
-
     drawRoute(routeData) {
       if (this.polyline) {
         this.polyline.setMap(null);

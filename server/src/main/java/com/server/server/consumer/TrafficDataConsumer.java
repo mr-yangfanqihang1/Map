@@ -271,7 +271,7 @@ public class TrafficDataConsumer implements Runnable {
         // Step 3: 计算状态
         String calculatedStatus = calculateRoadStatus(roadTrafficData.getUserCount(), roadTrafficData.getMaxLoad());
         if (!calculatedStatus.equals(roadTrafficData.getStatus())) {
-            //System.out.println("Road status mismatch, updating road status for roadId: " + roadTrafficData.getRoadId());
+            System.out.println("Road status mismatch, updating road status for roadId: " + roadTrafficData.getRoadId());
             nonFairLock.lock(); // 获取非公平锁
             try {
                 if (road == null) {
