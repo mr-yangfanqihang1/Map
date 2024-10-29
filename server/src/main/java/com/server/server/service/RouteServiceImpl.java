@@ -35,7 +35,11 @@ public class RouteServiceImpl implements RouteService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final int PRIORITY_LEVELS = 5; // 定义 5 个优先级队列
     private final List<Queue<Route>> priorityQueues = new ArrayList<>(PRIORITY_LEVELS);
-    boolean isStatus = false;
+    boolean  isStatus = false;
+
+    public void  setIsStatus(){
+        isStatus = true;
+    }
     // 初始化多个优先级队列
     public RouteServiceImpl() {
         for (int i = 0; i < PRIORITY_LEVELS; i++) {
