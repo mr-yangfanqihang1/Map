@@ -16,7 +16,7 @@
     <!-- 批量更新方法 -->
     <update id="batchUpdateTrafficData" parameterType="list">
         UPDATE traffic_data
-        <set>
+        SET 
             id = CASE user_id
                 <foreach collection="trafficDataList" item="item">
                     WHEN #{item.userId} THEN #{item.Id}
@@ -41,7 +41,6 @@
                 </foreach>
                 ELSE road_id
             END
-        </set>
         WHERE user_id IN
         <foreach collection="trafficDataList" item="item" open="(" separator="," close=")">
             #{item.userId}

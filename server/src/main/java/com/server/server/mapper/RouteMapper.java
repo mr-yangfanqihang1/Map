@@ -42,8 +42,20 @@ public interface RouteMapper {
     List<Road> getGreenNeighbors(long roadId);
 
     // 根据起始和结束 ID 查找路径
-    @Select("SELECT * FROM routes WHERE start_id = #{startId} AND end_id = #{endId}")
-    Route findPathByStartAndEnd(@Param("startId") long startId, @Param("endId") long endId);
+    @Select("SELECT * FROM routes " +
+    "WHERE start_id = #{startId} AND end_id = #{endId} " +
+    "AND distance_weight = #{distanceWeight} " +
+    "AND duration_weight = #{durationWeight} " +
+    "AND price_weight = #{priceWeight} " +
+    "LIMIT 1")
+    Route findPathByStartAndEnd(
+        @Param("startId") long startId,
+        @Param("endId") long endId,
+        @Param("distanceWeight") int distanceWeight,
+        @Param("durationWeight") int durationWeight,
+        @Param("priceWeight") int priceWeight
+    );
+
 
     @Update("UPDATE routes SET user_id = #{userId}, start_id = #{startId}, end_id = #{endId}, " +
             "distance = #{distance}, duration = #{duration}, price = #{price}, timestamp = #{timestamp}, " +

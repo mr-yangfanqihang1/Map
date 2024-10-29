@@ -160,6 +160,7 @@ export default {
       road.duration += durationAdjustment;
       this.totalDuration += durationAdjustment;
     }
+    console.log("new duration: "+this.totalDuration);
   },
 
   setUserIdFromUrl() {
