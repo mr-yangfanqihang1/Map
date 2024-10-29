@@ -15,9 +15,9 @@ public class Route {
     private int userId;
     private long startId;
     private long endId;
-    private String distance;
-    private String duration;
-    private String price;  // 新增价格字段
+    private double distance;
+    private double duration;
+    private double price;  // 新增价格字段
     private List<RouteData> routeData;
     private String timestamp;
     private int priority;             // 初始优先级

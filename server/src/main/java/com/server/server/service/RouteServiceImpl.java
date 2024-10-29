@@ -19,6 +19,7 @@ import com.server.server.data.Road;
 import com.server.server.data.Route;
 import com.server.server.data.RouteData;
 import com.server.server.mapper.RouteMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 @Service
 public class RouteServiceImpl implements RouteService {
     @Autowired
@@ -67,7 +68,6 @@ public class RouteServiceImpl implements RouteService {
         int additionalPriority = (int) (waitingTime / 0.5); 
         System.out.println("Adjusting priority for route. Original priority: " 
             + route.getPriority() + ", Additional priority: " + additionalPriority);
-    
         // 确保优先级始终在合法范围内
         int newPriority = Math.min(PRIORITY_LEVELS - 1, Math.max(0, route.getPriority() - additionalPriority));
         route.setPriority(newPriority);
@@ -117,17 +117,29 @@ public class RouteServiceImpl implements RouteService {
 
     @Override
     public Route calculateRoute(Route route) {
-        Route existingRoute = routeMapper.findPathByStartAndEnd(route.getStartId(), route.getEndId());
-        if (existingRoute != null) {
-            System.out.println("Found existing route in database.");
-            //existingRoute.setRouteDataFromJson(null);
-            return existingRoute; // 如果数据库中有，直接返回
-        }
-
         // 调整动态优先级
         adjustDynamicPriority(route);
         
-        Map<String, Double> weights = getUserWeights(userService.getPreferences(route.getUserId()));
+         // 获取用户偏好的权重
+         Map<String, Integer> weights = getUserWeights(userService.getPreferences(route.getUserId()));
+         route.setDistanceWeight(weights.getOrDefault("distance", 100));
+         route.setDurationWeight(weights.getOrDefault("time", 100));
+         route.setPriceWeight(weights.getOrDefault("price", 100));
+         
+    // 查询并返回路径
+    Route existingRoute = routeMapper.findPathByStartAndEnd(
+        route.getStartId(),
+        route.getEndId(),
+        route.getDistanceWeight(),
+        route.getDurationWeight(),
+        route.getPriceWeight()
+    );
+    if (existingRoute!=null){
+        System.out.println("Found existing route in database" );
+        return existingRoute;
+    } 
+
+        
 
         // 从redis获取起始和结束 Road
         Road startRoad = new Road();
@@ -154,15 +166,18 @@ public class RouteServiceImpl implements RouteService {
         return calculatedRoute;
     }
     @SuppressWarnings("unchecked")
-    private Map<String, Double> getUserWeights(String preferencesJson) {
+    private Map<String, Integer> getUserWeights(String preferencesJson) {
         try {
             System.out.println("Parsing user weights from preferences: " + preferencesJson);
-            return objectMapper.readValue(preferencesJson, Map.class);
+            Map<String, Integer> weights = objectMapper.readValue(preferencesJson, new TypeReference<Map<String, Integer>>() {});
+            System.out.println("Parsed weights: " + weights);  // 输出解析后的内容
+            return weights;
         } catch (Exception e) {
             System.err.println("Failed to parse user weights.");
             throw new RuntimeException("解析用户权重失败", e);
         }
     }
+    
     private void saveStateToRedis(String userId, PriorityQueue<Node> openList, Set<Road> closedList, Node currentNode) {
         try {
             // 序列化并存储 openList 和 closedList
@@ -196,7 +211,7 @@ public class RouteServiceImpl implements RouteService {
         return false;
     }
 
-    private Route aStarSearch(Road startRoad, Road endRoad, Map<String, Double> weights, Route route, boolean isStatus) {
+    private Route aStarSearch(Road startRoad, Road endRoad, Map<String, Integer> weights, Route route, boolean isStatus) {
         List<RouteData> RouteData = new ArrayList<>(); // 用于存储结果路径数据
         
         PriorityQueue<Node> openList = new PriorityQueue<>(Comparator.comparingDouble(Node::getF));
@@ -318,15 +333,15 @@ public class RouteServiceImpl implements RouteService {
         return System.currentTimeMillis() % 1000000 == 0;
     }
 
-    private double getCost(Road road, Map<String, Double> weights) {
+    private double getCost(Road road, Map<String, Integer> weights) {
         // 根据 Road 属性计算代价（距离、时间、价格等）
         double normalizedDistance = Double.parseDouble(String.valueOf(road.getDistance()));
         double normalizedDuration = Double.parseDouble(String.valueOf(road.getDuration()));
         double normalizedPrice = Double.parseDouble(String.valueOf(road.getPrice()));
 
-        double weightDistance = weights.getOrDefault("weightDistance", 1.0);
-        double weightDuration = weights.getOrDefault("weightDuration", 1.0);
-        double weightPrice = weights.getOrDefault("weightPrice", 1.0);
+        double weightDistance = weights.getOrDefault("distance", 1);
+        double weightDuration = weights.getOrDefault("time", 1);
+        double weightPrice = weights.getOrDefault("price", 1);
 
         double cost = weightDistance * normalizedDistance +
                 weightDuration * normalizedDuration +
@@ -363,7 +378,7 @@ public class RouteServiceImpl implements RouteService {
             routeData.setDuration(road.getDuration());
             routeData.setPrice(road.getPrice());
             routeData.setStatus(road.getStatus());
-
+            routeData.setRoadId(road.getId());
             totalDistance += road.getDistance();
             totalDuration += road.getDuration();
             totalPrice += road.getPrice();
@@ -378,9 +393,9 @@ public class RouteServiceImpl implements RouteService {
         
 
         route.setRouteData(RouteData); // 设置路径数据
-        route.setDistance(String.valueOf(totalDistance));
-        route.setDuration(String.valueOf(totalDuration));
-        route.setPrice(String.valueOf(totalPrice));
+        route.setDistance(totalDistance);
+        route.setDuration(totalDuration);
+        route.setPrice(totalPrice);
         routeMapper.insertRoute(route);
         return route;
     }

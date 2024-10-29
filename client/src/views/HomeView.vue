@@ -93,9 +93,6 @@ export default {
         userId: '',
         startId: '',
         endId: '',
-        showRoadStatus: false,
-        movingIcon: null, // Store moving icon reference
-        currentSegmentIndex: 0, // Track current segment index for movement
       },
       startInput: '',  // 用于显示用户输入的起点名称
       endInput: '',    // 用于显示用户输入的终点名称
@@ -103,13 +100,44 @@ export default {
       endSuggestions: [],
       calculatedRoute: '',
       calcError: '',
-      routeData: null,       // 用于存储计算后的路线数据
+      scheduledDate : new Date('2024-10-29T22:29:00+08:00'), // 北京时间为UTC+8
+
+      routeData: {
+          "userId": 0,
+          "startId": 0,
+          "endId": 0,
+          "distance": 0.0,
+          "duration": 0.0,
+          "price": 0.0,
+          "routeData": [                 //数据结构：
+              {
+                  "startLat": 0,
+                  "startLong": 0,
+                  "endLat": 0,
+                  "endLong": 0,
+                  "distance": 0,
+                  "duration": 0,
+                  "price": 0,
+                  "status": "绿",
+                  "roadId":0,
+              }
+          ],
+          "timestamp": null,
+          "priority": 0,
+          "requestTime": null,
+          "distanceWeight": 0,
+          "durationWeight": 0,
+          "priceWeight": 0
+      },       // 用于存储计算后的路线数据
       isUserIdReadonly: false,
       isLoading: false, // 添加加载状态
       isCalculationComplete: false, // 添加计算完成状态
       map: null,
       polyline: null,
       showPendingMessage: false, // 新增变量控制待处理消息的显示
+      showRoadStatus: false,
+      movingIcon: null, // Store moving icon reference
+      currentSegmentIndex: 0, // Track current segment index for movement
     };
   },
   created() {
@@ -117,50 +145,77 @@ export default {
   },
   mounted() {
     this.initMap();
+    this.schedule(this.scheduledDate, 77734114, 2.0);
   },
   methods: {
     initWebSocket() {
-    const userId = this.calculateInput.userId;
-    
-    // 使用 SockJS 作为传输层
-    const socket = new SockJS("http://localhost:8080/ws");
-    const client = new Client({
-      webSocketFactory: () => socket, // 使用 SockJS
-      connectHeaders: {
-        login: "guest",
-        passcode: "guest",
-      },
-      onConnect: () => {
-        console.log('WebSocket connected');
-        // 订阅用户专属的队列
-        client.subscribe(`/user/${userId}/queue/roadUpdates`, (message) => {
-          const update = JSON.parse(message.body);
-          console.log(update);
-          this.updateDuration(update.roadId, update.durationAdjustment);
+        const userId = this.calculateInput.userId;
+        if (!userId) {
+            console.error("User ID is undefined. WebSocket cannot be initialized.");
+            return;
+        }
+
+        console.log("Initializing WebSocket for user:", userId);
+        const socket = new SockJS("http://localhost:8080/ws");
+        const client = new Client({
+            webSocketFactory: () => socket,
+            connectHeaders: {
+                login: "guest",
+                passcode: "guest",
+            },
+            onConnect: () => {
+                const subscriptionPath = `/user/${userId}/queue/roadUpdates`;
+                console.log(`Subscribing to: ${subscriptionPath}`);
+                client.subscribe(subscriptionPath, (message) => {
+                    console.log("Received message from WebSocket:", message.body); // 确认 message.body 存在
+                    if (message.body) {
+                        const update = JSON.parse(message.body);
+                        console.log("Parsed update:", update);
+                        this.updateDuration(update.roadId, update.durationAdjustment);
+                    }
+                });
+            },
+            onStompError: (error) => console.error('STOMP error:', error),
+            onWebSocketError: (error) => console.error('WebSocket error:', error),
+            onWebSocketClose: () => {
+                console.log('WebSocket closed. Attempting to reconnect...');
+                setTimeout(() => this.initWebSocket(), 1000);
+            }
         });
-      },
-      onStompError: (error) => {
-        console.error('STOMP 错误:', error);
-      },
-      onWebSocketError: (error) => {
-        console.error('WebSocket error:', error);
-      },
-      onWebSocketClose: () => {
-        console.log('WebSocket closed. Attempting to reconnect...');
-        setTimeout(() => this.initWebSocket(), 1000); // 自动重连机制
-      }
-    });
 
-    client.activate();
-  },
+        client.activate();
+    },
+    schedule(date, roadId, durationAdjustment) {
+    const now = new Date();
+    const delay = date.getTime() - now.getTime();
 
-  updateDuration(roadId, durationAdjustment) {
-    const road = this.routeData.find((r) => r.roadId === roadId);
-    if (road) {
-      road.duration += durationAdjustment;
-      this.totalDuration += durationAdjustment;
+    if (delay > 0) {
+      setTimeout(() => {
+        this.updateDuration(roadId, durationAdjustment);
+      }, delay);
+    } else {
+      console.error("指定时间已过，请提供一个未来的时间。");
     }
   },
+
+
+    updateDuration(roadId, durationAdjustment) {
+      if (Array.isArray(this.routeData.routeData)) {
+        const road = this.routeData.routeData.find((r) => r.roadId === roadId);
+        if (road) {
+          road.duration += durationAdjustment;
+          road.status='红';
+          alert("old duration:" + this.routeData.duration);
+          this.routeData.duration =this.routeData.duration+ durationAdjustment;
+          alert("new duration: " + this.routeData.duration);
+          this.outputAndDrawRoute();
+          alert("new duration: " + this.routeData.duration);
+        }
+        
+      } else {
+        alert("routeData is not an array.");
+      }
+    },
 
   setUserIdFromUrl() {
     const url = window.location.href;
@@ -243,7 +298,6 @@ export default {
       // 选择终点后立即计算路线
       this.calculateRoute();
     },
-    // 其他方法保持不变
     calculateRoute() {
       this.calcError = '';
       this.calculatedRoute = '';
@@ -282,88 +336,157 @@ export default {
       }
     },
 
-    drawRoute(routeData) {
-      if (this.polyline) {
-        this.polyline.setMap(null);
-      }
+    drawRoute() {
+  if (!this.routeData || !Array.isArray(this.routeData.routeData)) {
+    console.error("this.routeData.routeData 未定义或不是数组。");
+    return;
+  }
 
-      const routePath = routeData.flatMap((segment) => {
-        return [
-          [segment.startLong, segment.startLat],
-          [segment.endLong, segment.endLat]
-        ];
-      });
+  if (this.routeData.routeData.length === 0) {
+    console.warn("routeData.routeData 数组为空。");
+    return;
+  }
 
-      this.polyline = new AMap.Polyline({
-        path: routePath,
-        borderWeight: 6,
-        strokeColor: '#33A1C9',
-        strokeOpacity: 0.8,
-        strokeWeight: 5,
-        lineJoin: 'round',
-        strokeStyle: 'solid',
-      });
+  if (this.polyline) {
+    this.polyline.setMap(null);
+  }
 
-      this.polyline.setMap(this.map);
-      this.map.setFitView([this.polyline]);
-      this.startMovingIcon(routeData); // Start moving icon after drawing route
-    },
-    startMovingIcon(routeData) {
-      if (this.movingIcon) {
-        this.movingIcon.setMap(null); // Remove previous icon if exists
-      }
+  this.routeData.routeData.forEach((segment) => {
+    if (
+      segment.startLong === undefined || 
+      segment.startLat === undefined || 
+      segment.endLong === undefined || 
+      segment.endLat === undefined
+    ) {
+      console.error("segment 坐标未定义", segment);
+      return;
+    }
 
-      this.movingIcon = new AMap.Marker({
-        position: [routeData[0].startLong, routeData[0].startLat],
-        icon: 'path/to/icon.png', // Path to your moving icon image
-        map: this.map,
-      });
+    const routePath = [
+      [segment.startLong, segment.startLat],
+      [segment.endLong, segment.endLat]
+    ];
 
-      this.moveAlongRoute(routeData);
-    },
+    const color = this.getColorForStatus(segment.status);
+
+    const polyline = new AMap.Polyline({
+      path: routePath,
+      borderWeight: 6,
+      strokeColor: color,
+      strokeOpacity: 0.8,
+      strokeWeight: 5,
+      lineJoin: 'round',
+      strokeStyle: 'solid',
+    });
+
+    polyline.setMap(this.map);
+    if (!this.polylines) {
+      this.polylines = [];
+    }
+    this.polylines.push(polyline);
+  });
+
+  this.map.setFitView();
+  this.startMovingIcon(this.routeData.routeData);
+},
+startMovingIcon(routeData) {
+  // 检查 routeData 是否定义且不为空
+  if (!routeData || routeData.length === 0) {
+    console.error("routeData 未定义或为空数组，无法启动移动图标。");
+    return;
+  }
+
+  if (this.movingIcon) {
+    this.movingIcon.setMap(null); // 移除上一个图标
+  }
+
+  const icon = new AMap.Icon({
+    image: require('@/assets/logo.png'), // 图标路径
+    size: new AMap.Size(32, 32), // 图标大小
+    imageSize: new AMap.Size(32, 32) // 图片大小，保持与图标一致
+  });
+
+  this.movingIcon = new AMap.Marker({
+    position: [routeData[0].startLong, routeData[0].startLat],
+    icon: icon,
+    map: this.map,
+    offset: new AMap.Pixel(-16, -16) // 调整偏移，使图标居中
+  });
+
+  this.moveAlongRoute(routeData);
+},
 
     moveAlongRoute(routeData) {
-      const interval = setInterval(() => {
-        if (this.currentSegmentIndex < routeData.length) {
-          const segment = routeData[this.currentSegmentIndex];
-          const nextPosition = [segment.endLong, segment.endLat];
+    // 清除当前的定时器，确保只启动一个
+    if (this.interval) clearInterval(this.interval);
 
-          this.movingIcon.setPosition(nextPosition);
-          this.uploadTrafficData(segment); // Upload traffic data for current segment
+    this.interval = setInterval(() => {
+      if (this.currentSegmentIndex < routeData.length) {
+        const segment = routeData[this.currentSegmentIndex];
+        const nextPosition = [segment.endLong, segment.endLat];
 
-          this.currentSegmentIndex++;
-        } else {
-          clearInterval(interval); // Stop when route is completed
-        }
-      }, 1000); // Adjust speed here (in milliseconds)
-    },
+        // 平滑移动图标到下一个位置
+        this.movingIcon.moveTo(nextPosition, 5000); // 使用 moveTo 平滑过渡，持续 5 秒
 
-    uploadRouteData(segment) {
-      const routeData = {
-        segmentId: segment.id, // Assuming each segment has an ID
-        startLong: segment.startLong,
-        startLat: segment.startLat,
-        endLong: segment.endLong,
-        endLat: segment.endLat,
-        currentStatus: this.getCurrentRouteStatus(segment), // Function to determine current status
-        timestamp: new Date().toISOString(), // Current timestamp
-      };
+        this.updateTrafficData(segment);
 
-    // Send traffic data to backend
-    axios.post('http://localhost:8080/api/route/upload', routeData)
-      .then(response => console.log('Route data uploaded:', response))
-      .catch(error => console.error('Error uploading route data:', error));
+        this.currentSegmentIndex++;
+      } else {
+        clearInterval(this.interval); // 路线完成时停止
+      }
+    }, 1000); // 每隔1秒更新一次
   },
+
+
+
+  updateTrafficData(segment) {
+  const data = {
+    roadId: segment.roadId,
+    userId: Math.floor(Math.random() * 1000) + 1, // 生成1到1000的随机数
+    speed: parseFloat((Math.random() * 100).toFixed(2)), // 生成0到100的随机速度，保留两位小数
+    timestamp: new Date().toISOString().slice(0, 19).replace("T", " ") // 转换为 MySQL 支持的格式
+  };
+
+  fetch("http://127.0.0.1:8080/api/traffic/update", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error("Failed to update traffic data");
+      }
+      // 检查响应是否有内容
+      const contentLength = response.headers.get("Content-Length");
+      if (!contentLength || contentLength === "0" || response.status === 204) {
+        console.log("No content returned from the server");
+        return; // 如果没有内容，直接返回
+      }
+      return response.json();
+    })
+    .then(responseData => {
+      if (responseData) {
+        console.log("Traffic data updated:", responseData);
+      }
+    })
+    .catch(error => {
+      console.error("Error updating traffic data:", error);
+    });
+  },
+
+
 
   getCurrentRouteStatus(segment) {
     // Logic to determine current traffic status based on your criteria
     // For example, you might have conditions based on speed or congestion level
     if (segment.congestionLevel > 70) {
-      return 'red'; // High congestion
+      return '红'; // High congestion
     } else if (segment.congestionLevel > 30) {
-      return 'orange'; // Moderate congestion
+      return '橙'; // Moderate congestion
     } else {
-      return 'green'; // Low congestion
+      return '绿'; // Low congestion
     }
   },
 
@@ -377,20 +500,33 @@ export default {
   },
 
   displayRoadStatus() {
-    axios.get('http://localhost:8080/api/roads/all') // Adjust API endpoint as needed
-        .then(response => {
-          response.data.forEach(road => {
-            const color = this.getColorForStatus(road.status); // Get color based on status
-            const polyline = new AMap.Polyline({
-              path: road.coordinates, // Assuming coordinates are provided in the response
-              strokeColor: color,
-              strokeWeight: 6,
-            });
-            polyline.setMap(this.map);
-          });
-        })
-        .catch(error => console.error('Error fetching road status:', error));
-  },
+  axios.get('http://localhost:8080/api/roads/all') // 根据需要调整API端点
+    .then(response => {
+      response.data.forEach(road => {
+        const path = [
+          [road.startLong, road.startLat], // 起点坐标
+          [road.endLong, road.endLat]      // 终点坐标
+        ];
+
+        // 根据道路状态获取颜色
+        const color = this.getColorForStatus(road.status); 
+
+        // 创建带有特定颜色的折线
+        const polyline = new AMap.Polyline({
+          path: path,
+          strokeColor: color,
+          strokeWeight: 6,
+          strokeOpacity: 0.8,
+          lineJoin: 'round',
+          strokeStyle: 'solid'
+        });
+
+        // 将折线添加到地图上
+        polyline.setMap(this.map);
+      });
+    })
+    .catch(error => console.error('Error fetching road status:', error));
+},
 
     clearRoadStatus() {
       this.map.clearMap(); // Clear all overlays from the map
@@ -398,11 +534,11 @@ export default {
 
   getColorForStatus(status) {
     switch (status) {
-      case 'red':
+      case '红':
         return '#FF0000'; // Red for congested
-      case 'orange':
+      case '橙':
         return '#FFA500'; // Orange for moderate
-      case 'green':
+      case '绿':
         return '#008000'; // Green for clear
       default:
         return '#CCCCCC'; // Default color if status is unknown

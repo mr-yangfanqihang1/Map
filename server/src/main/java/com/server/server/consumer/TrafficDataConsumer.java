@@ -10,9 +10,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReadWriteLock;
 import org.apache.ibatis.exceptions.PersistenceException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.endpoint.web.PathMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.stereotype.Component;
+
 import com.server.server.data.*;
 import com.server.server.mapper.RoadMapper;
 import com.server.server.mapper.TrafficDataMapper;
@@ -29,7 +32,7 @@ public class TrafficDataConsumer implements Runnable {
     private List<TrafficData> insertBatch = new ArrayList<>();
     private List<TrafficData> updateBatch = new ArrayList<>();
     private static final int BATCH_SIZE = 8; // 批量大小
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(6);
     private final RedisTemplate<String, Object> redisTemplate;
     private final ValueOperations<String, Object> valueOps;
     private RoadStatusWebSocketService roadStatusWebSocketService;
@@ -38,7 +41,6 @@ public class TrafficDataConsumer implements Runnable {
     private final ReentrantLock nonFairLock = new ReentrantLock(false);
     private final ReadWriteLock readWriteLock = new java.util.concurrent.locks.ReentrantReadWriteLock();
     private RouteMapper routeMapper;
-
     public TrafficDataConsumer(
             PriorityBlockingQueue<TrafficDataRequest> queue,
             TrafficDataMapper trafficDataMapper,
@@ -46,7 +48,8 @@ public class TrafficDataConsumer implements Runnable {
             UserMapper userMapper,  // 传入 userMapper
             RouteMapper routeMapper,
             ConcurrentHashMap<Integer, List<TrafficData>> queryResults,
-            RedisTemplate<String, Object> redisTemplate
+            RedisTemplate<String, Object> redisTemplate,
+            RoadStatusWebSocketService roadStatusWebSocketService
     ) {
         this.queue = queue;
         this.trafficDataMapper = trafficDataMapper;
@@ -56,6 +59,7 @@ public class TrafficDataConsumer implements Runnable {
         this.redisTemplate = redisTemplate;
         this.valueOps = redisTemplate.opsForValue();
         this.routeMapper = routeMapper;
+        this.roadStatusWebSocketService=roadStatusWebSocketService;
 
         // 初始化时加载所有道路和用户数据到 Redis
         loadInitialRoad();
@@ -135,9 +139,11 @@ public class TrafficDataConsumer implements Runnable {
         scheduler.scheduleAtFixedRate(this::checkAndUpdateAllRoadStatuses, 0, 30, TimeUnit.SECONDS);
 
         // 定期将 Redis 的状态持久化到数据库
-        scheduler.scheduleAtFixedRate(this::updateRoadDataFromRedis, 0, 60, TimeUnit.SECONDS);
+        //scheduler.scheduleAtFixedRate(this::updateRoadDataFromRedis, 0, 15, TimeUnit.SECONDS);
         //定期更新user到数据库
-        scheduler.scheduleAtFixedRate(this::updateUserDataFromRedis, 0, 60, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::updateUserDataFromRedis, 0, 30, TimeUnit.SECONDS);
+        // 在构造函数中添加定时批处理任务
+        scheduler.scheduleAtFixedRate(this::flushBatches, 0, 5, TimeUnit.SECONDS);
 
         // 处理队列中的请求
         while (true) {
@@ -153,16 +159,30 @@ public class TrafficDataConsumer implements Runnable {
             }
         }
     }
-
+    private void flushBatches() {
+        nonFairLock.lock(); // 获取非公平锁
+        try {
+            if (!insertBatch.isEmpty()) {
+                trafficDataMapper.batchInsertTrafficData(insertBatch);
+                insertBatch.clear();
+            }
+            if (!updateBatch.isEmpty()) {
+                trafficDataMapper.batchUpdateTrafficData(updateBatch);
+                updateBatch.clear();
+            }
+        } finally {
+            nonFairLock.unlock(); // 释放非公平锁
+        }
+    }
+    
     // 处理请求
     private void processRequest(TrafficDataRequest request) {
         try {
             if (request instanceof TrafficDataInsertRequest) {
-                System.out.println("insertBatch adding");
                 insertBatch.add(((TrafficDataInsertRequest) request).getTrafficData());
-                System.out.println("insertBatch added");
             } else if (request instanceof TrafficDataUpdateRequest) {
                 updateBatch.add(((TrafficDataUpdateRequest) request).getTrafficData());
+
             } else if (request instanceof TrafficDataQueryRequest) {
                 readWriteLock.readLock().lock(); // 获取读锁
                 try {
@@ -178,6 +198,7 @@ public class TrafficDataConsumer implements Runnable {
                 nonFairLock.lock(); // 获取非公平锁进行插入
                 try {
                     trafficDataMapper.batchInsertTrafficData(insertBatch);
+                    System.out.println("insertBatch added");
                     insertBatch.clear();
                 } finally {
                     nonFairLock.unlock(); // 释放非公平锁
@@ -188,6 +209,7 @@ public class TrafficDataConsumer implements Runnable {
                 nonFairLock.lock(); // 获取非公平锁进行更新
                 try {
                     trafficDataMapper.batchUpdateTrafficData(updateBatch);
+                    System.out.println("updateBatch added");
                     updateBatch.clear();
                 } finally {
                     nonFairLock.unlock(); // 释放非公平锁
@@ -291,6 +313,7 @@ public class TrafficDataConsumer implements Runnable {
                     // 通知受影响的用户
                     for (Integer userId : affectedUserIds) {
                         roadStatusWebSocketService.notifyUser(userId, roadTrafficData.getRoadId(), durationAdjustment);
+                        System.out.println("notified user: " + userId);
                     }
                     road.setDuration(newDuration);
                 } else {
