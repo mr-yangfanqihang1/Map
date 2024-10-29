@@ -271,21 +271,20 @@ public class TrafficDataConsumer implements Runnable {
         // Step 3: 计算状态
         String calculatedStatus = calculateRoadStatus(roadTrafficData.getUserCount(), roadTrafficData.getMaxLoad());
         if (!calculatedStatus.equals(roadTrafficData.getStatus())) {
-            //System.out.println("Road status mismatch, updating road status for roadId: " + roadTrafficData.getRoadId());
+            System.out.println("Road status mismatch, updating road status for roadId: " + roadTrafficData.getRoadId());
             nonFairLock.lock(); // 获取非公平锁
             try {
                 if (road == null) {
                     road = new Road();
                 }
                 // Step 4: 更新 Road 对象属性
-                road.setId(roadTrafficData.getRoadId());
-                road.setMaxLoad(roadTrafficData.getMaxLoad());
-                road.setStatus(roadTrafficData.getStatus());
+                road.setStatus(calculatedStatus);
                 
                 // Step 5: 根据计算的速度更新持续时间
                 if (roadTrafficData.getAverageSpeed() != 0) {
                     //用路程除以平均速度得到预计时间
                     double newDuration=road.getDistance() * 60 / roadTrafficData.getAverageSpeed();
+                    System.out.println("newDuration: " + newDuration);
                     double durationAdjustment = newDuration-road.getDuration();
                     // 查询 path 表获取包含 roadId 的用户 ID 列表
                     List<Integer> affectedUserIds = routeMapper.getUsersByRoadId(roadTrafficData.getRoadId());
@@ -296,10 +295,11 @@ public class TrafficDataConsumer implements Runnable {
                     road.setDuration(newDuration);
                 } else {
                     System.out.println("Warning: Average speed is zero for roadId: " + roadTrafficData.getRoadId());
-                    road.setDuration(0); // 防止除以零
+                    road.setDuration(road.getDistance()); // 防止除以零
                 }
-                // Step 6: 更新 Redis 中的数据
+                // Step 6: 更新 Redis、数据库 中的数据
                 valueOps.set("roadData:roadId:" + road.getId(), road);
+                roadMapper.updateRoad(road);
                 //System.out.println("Updated road status for roadId: " + road.getId());
             } catch (Exception e) {
                 System.out.println("Error while updating road status for roadId: " + roadTrafficData.getRoadId() + ": " + e.getMessage());
