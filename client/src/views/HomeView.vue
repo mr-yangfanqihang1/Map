@@ -310,51 +310,87 @@ export default {
       this.startMovingIcon(routeData); // Start moving icon after drawing route
     },
     startMovingIcon(routeData) {
-      if (this.movingIcon) {
-        this.movingIcon.setMap(null); // Remove previous icon if exists
-      }
+    if (this.movingIcon) {
+      this.movingIcon.setMap(null); // 移除上一个图标
+    }
 
-      this.movingIcon = new AMap.Marker({
-        position: [routeData[0].startLong, routeData[0].startLat],
-        icon: 'path/to/icon.png', // Path to your moving icon image
-        map: this.map,
-      });
+    const icon = new AMap.Icon({
+      image: require('@/assets/logo.png'), // 图标路径
+      size: new AMap.Size(32, 32), // 图标大小
+      imageSize: new AMap.Size(32, 32) // 图片大小，保持与图标一致
+    });
 
-      this.moveAlongRoute(routeData);
-    },
+    this.movingIcon = new AMap.Marker({
+      position: [routeData[0].startLong, routeData[0].startLat],
+      icon: icon,
+      map: this.map,
+      offset: new AMap.Pixel(-16, -16) // 调整偏移，使图标居中
+    });
+
+    this.moveAlongRoute(routeData);
+  },
 
     moveAlongRoute(routeData) {
-      const interval = setInterval(() => {
-        if (this.currentSegmentIndex < routeData.length) {
-          const segment = routeData[this.currentSegmentIndex];
-          const nextPosition = [segment.endLong, segment.endLat];
+    // 清除当前的定时器，确保只启动一个
+    if (this.interval) clearInterval(this.interval);
 
-          this.movingIcon.setPosition(nextPosition);
-          this.uploadTrafficData(segment); // Upload traffic data for current segment
+    this.interval = setInterval(() => {
+      if (this.currentSegmentIndex < routeData.length) {
+        const segment = routeData[this.currentSegmentIndex];
+        const nextPosition = [segment.endLong, segment.endLat];
 
-          this.currentSegmentIndex++;
-        } else {
-          clearInterval(interval); // Stop when route is completed
-        }
-      }, 1000); // Adjust speed here (in milliseconds)
-    },
+        // 平滑移动图标到下一个位置
+        this.movingIcon.moveTo(nextPosition, 5000); // 使用 moveTo 平滑过渡，持续 5 秒
 
-    uploadRouteData(segment) {
-      const routeData = {
-        segmentId: segment.id, // Assuming each segment has an ID
-        startLong: segment.startLong,
-        startLat: segment.startLat,
-        endLong: segment.endLong,
-        endLat: segment.endLat,
-        currentStatus: this.getCurrentRouteStatus(segment), // Function to determine current status
-        timestamp: new Date().toISOString(), // Current timestamp
-      };
+        this.updateTrafficData(segment);
 
-    // Send traffic data to backend
-    axios.post('http://localhost:8080/api/route/upload', routeData)
-      .then(response => console.log('Route data uploaded:', response))
-      .catch(error => console.error('Error uploading route data:', error));
+        this.currentSegmentIndex++;
+      } else {
+        clearInterval(this.interval); // 路线完成时停止
+      }
+    }, 1000); // 每隔1秒更新一次
   },
+
+
+
+  updateTrafficData(segment) {
+  const data = {
+    roadId: segment.roadId,
+    userId: Math.floor(Math.random() * 1000) + 1, // 生成1到1000的随机数
+    speed: parseFloat((Math.random() * 100).toFixed(2)), // 生成0到100的随机速度，保留两位小数
+    timestamp: new Date().toISOString().slice(0, 19).replace("T", " ") // 转换为 MySQL 支持的格式
+  };
+
+  fetch("http://127.0.0.1:8080/api/traffic/update", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error("Failed to update traffic data");
+      }
+      // 检查响应是否有内容
+      const contentLength = response.headers.get("Content-Length");
+      if (!contentLength || contentLength === "0" || response.status === 204) {
+        console.log("No content returned from the server");
+        return; // 如果没有内容，直接返回
+      }
+      return response.json();
+    })
+    .then(responseData => {
+      if (responseData) {
+        console.log("Traffic data updated:", responseData);
+      }
+    })
+    .catch(error => {
+      console.error("Error updating traffic data:", error);
+    });
+  },
+
+
 
   getCurrentRouteStatus(segment) {
     // Logic to determine current traffic status based on your criteria

@@ -10,9 +10,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReadWriteLock;
 import org.apache.ibatis.exceptions.PersistenceException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.endpoint.web.PathMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.stereotype.Component;
+
 import com.server.server.data.*;
 import com.server.server.mapper.RoadMapper;
 import com.server.server.mapper.TrafficDataMapper;
@@ -38,7 +41,6 @@ public class TrafficDataConsumer implements Runnable {
     private final ReentrantLock nonFairLock = new ReentrantLock(false);
     private final ReadWriteLock readWriteLock = new java.util.concurrent.locks.ReentrantReadWriteLock();
     private RouteMapper routeMapper;
-
     public TrafficDataConsumer(
             PriorityBlockingQueue<TrafficDataRequest> queue,
             TrafficDataMapper trafficDataMapper,
@@ -46,7 +48,8 @@ public class TrafficDataConsumer implements Runnable {
             UserMapper userMapper,  // 传入 userMapper
             RouteMapper routeMapper,
             ConcurrentHashMap<Integer, List<TrafficData>> queryResults,
-            RedisTemplate<String, Object> redisTemplate
+            RedisTemplate<String, Object> redisTemplate,
+            RoadStatusWebSocketService roadStatusWebSocketService
     ) {
         this.queue = queue;
         this.trafficDataMapper = trafficDataMapper;
@@ -56,6 +59,7 @@ public class TrafficDataConsumer implements Runnable {
         this.redisTemplate = redisTemplate;
         this.valueOps = redisTemplate.opsForValue();
         this.routeMapper = routeMapper;
+        this.roadStatusWebSocketService=roadStatusWebSocketService;
 
         // 初始化时加载所有道路和用户数据到 Redis
         loadInitialRoad();
@@ -135,9 +139,9 @@ public class TrafficDataConsumer implements Runnable {
         scheduler.scheduleAtFixedRate(this::checkAndUpdateAllRoadStatuses, 0, 30, TimeUnit.SECONDS);
 
         // 定期将 Redis 的状态持久化到数据库
-        scheduler.scheduleAtFixedRate(this::updateRoadDataFromRedis, 0, 60, TimeUnit.SECONDS);
+        //scheduler.scheduleAtFixedRate(this::updateRoadDataFromRedis, 0, 15, TimeUnit.SECONDS);
         //定期更新user到数据库
-        scheduler.scheduleAtFixedRate(this::updateUserDataFromRedis, 0, 60, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::updateUserDataFromRedis, 0, 30, TimeUnit.SECONDS);
         // 在构造函数中添加定时批处理任务
         scheduler.scheduleAtFixedRate(this::flushBatches, 0, 5, TimeUnit.SECONDS);
 
@@ -309,6 +313,7 @@ public class TrafficDataConsumer implements Runnable {
                     // 通知受影响的用户
                     for (Integer userId : affectedUserIds) {
                         roadStatusWebSocketService.notifyUser(userId, roadTrafficData.getRoadId(), durationAdjustment);
+                        System.out.println("notified user: " + userId);
                     }
                     road.setDuration(newDuration);
                 } else {

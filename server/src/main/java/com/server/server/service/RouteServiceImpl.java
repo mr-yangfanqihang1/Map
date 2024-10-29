@@ -378,6 +378,7 @@ public class RouteServiceImpl implements RouteService {
             routeData.setDuration(road.getDuration());
             routeData.setPrice(road.getPrice());
             routeData.setStatus(road.getStatus());
+            routeData.setRoadId(road.getId());
             totalDistance += road.getDistance();
             totalDuration += road.getDuration();
             totalPrice += road.getPrice();

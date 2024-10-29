@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class RouteData {
+    private long roadId;
     private double startLat;
     private double startLong;
     private double endLat;

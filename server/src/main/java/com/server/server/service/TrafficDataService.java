@@ -31,7 +31,8 @@ public class TrafficDataService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate; // 自动注入RedisTemplate
-
+    @Autowired
+    private RoadStatusWebSocketService roadStatusWebSocketService;
 
 
     // 动态优先级队列
@@ -54,7 +55,7 @@ public class TrafficDataService {
         System.out.println("Consumer thread pool initialized...");
         
         // 将消费者任务提交到线程池
-        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, roadMapper,userMapper,routeMapper, queryResults, redisTemplate)); 
+        taskExecutor.submit(new TrafficDataConsumer(queue, trafficDataMapper, roadMapper,userMapper,routeMapper, queryResults, redisTemplate ,roadStatusWebSocketService)); 
     }
 
 
