@@ -93,9 +93,6 @@ export default {
         userId: '',
         startId: '',
         endId: '',
-        showRoadStatus: false,
-        movingIcon: null, // Store moving icon reference
-        currentSegmentIndex: 0, // Track current segment index for movement
       },
       startInput: '',  // 用于显示用户输入的起点名称
       endInput: '',    // 用于显示用户输入的终点名称
@@ -110,6 +107,9 @@ export default {
       map: null,
       polyline: null,
       showPendingMessage: false, // 新增变量控制待处理消息的显示
+      showRoadStatus: false,
+      movingIcon: null, // Store moving icon reference
+      currentSegmentIndex: 0, // Track current segment index for movement
     };
   },
   created() {
