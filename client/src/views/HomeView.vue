@@ -500,24 +500,33 @@ startMovingIcon(routeData) {
   },
 
   displayRoadStatus() {
-    axios.get('http://localhost:8080/api/roads/all') // Adjust API endpoint as needed
-        .then(response => {
-          response.data.forEach(road => {
-           const path = [
+  axios.get('http://localhost:8080/api/roads/all') // 根据需要调整API端点
+    .then(response => {
+      response.data.forEach(road => {
+        const path = [
           [road.startLong, road.startLat], // 起点坐标
           [road.endLong, road.endLat]      // 终点坐标
         ];
-        const color = this.getColorForStatus(road.status); // Get color based on status
+
+        // 根据道路状态获取颜色
+        const color = this.getColorForStatus(road.status); 
+
+        // 创建带有特定颜色的折线
         const polyline = new AMap.Polyline({
           path: path,
           strokeColor: color,
           strokeWeight: 6,
+          strokeOpacity: 0.8,
+          lineJoin: 'round',
+          strokeStyle: 'solid'
         });
-            polyline.setMap(this.map);
-          });
-        })
-        .catch(error => console.error('Error fetching road status:', error));
-  },
+
+        // 将折线添加到地图上
+        polyline.setMap(this.map);
+      });
+    })
+    .catch(error => console.error('Error fetching road status:', error));
+},
 
     clearRoadStatus() {
       this.map.clearMap(); // Clear all overlays from the map
