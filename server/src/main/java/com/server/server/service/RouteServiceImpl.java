@@ -41,6 +41,9 @@ public class RouteServiceImpl implements RouteService {
     public void  setIsStatus(){
         isStatus = true;
     }
+    public void returnIsStatus(){
+        isStatus = false;
+    }
     // 初始化多个优先级队列
     public RouteServiceImpl() {
         for (int i = 0; i < PRIORITY_LEVELS; i++) {
