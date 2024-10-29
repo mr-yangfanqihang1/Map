@@ -23,9 +23,9 @@ public class SmartController {
     }
     @GetMapping("/returnIsStatus")
     public boolean SmartReturnIsStatus(){
-        //boolean isStatus = smartService.getIsStatus();
+        boolean isStatus = smartService.returnIsStatus();
         routeServiceImpl.returnIsStatus();
-        return false;
+        return isStatus;
     }
 
 }
