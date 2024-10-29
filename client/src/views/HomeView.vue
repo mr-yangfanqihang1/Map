@@ -7,12 +7,11 @@
         <button>个人中心</button>
       </router-link>
     </div>
-
-
     <!-- 路线管理部分，左上角展示已计算的路线信息 -->
     <div class="route-management">
       <button @click="toggleRoadStatus">{{ showRoadStatus ? 'Hide' : 'Show' }} Road Status</button>
-      <h3>Calculate Route</h3>
+      <el-row></el-row>
+      <button @click="toggleSmartStatus">{{ smart ? '开启' : '关闭' }}智能调度 </button>
       <form @submit.prevent="calculateRoute">
         <!-- 用户 ID 输入框 -->
         <input
@@ -103,6 +102,7 @@ export default {
       scheduledDate : new Date('2024-10-29T22:29:00+08:00'), // 北京时间为UTC+8
 
       routeData: {
+          "smart":false,
           "userId": 0,
           "startId": 0,
           "endId": 0,
@@ -148,6 +148,14 @@ export default {
     this.schedule(this.scheduledDate, 77734114, 2.0);
   },
   methods: {
+    smartRoad(){
+      if (this.smart) {
+        axios.get(`http://localhost:8080/api/smart`)
+            .catch(error => {
+              console.error('Error fetching start points:', error.response ? error.response.data : error);
+            });
+      }
+    },
     initWebSocket() {
         const userId = this.calculateInput.userId;
         if (!userId) {
@@ -497,6 +505,15 @@ startMovingIcon(routeData) {
     } else {
       this.clearRoadStatus(); // Clear displayed statuses
     }
+  },
+  toggleSmartStatus() {
+    this.smart = !this.smart;
+    if (this.smart) {
+      this.smartRoad(); // Fetch and display road statuses
+    }
+    // } else {
+    //   this.smartRoad(); // Clear displayed statuses
+    // }
   },
 
   displayRoadStatus() {
