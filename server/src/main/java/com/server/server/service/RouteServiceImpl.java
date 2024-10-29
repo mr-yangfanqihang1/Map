@@ -393,9 +393,9 @@ public class RouteServiceImpl implements RouteService {
         
 
         route.setRouteData(RouteData); // 设置路径数据
-        route.setDistance(String.valueOf(totalDistance));
-        route.setDuration(String.valueOf(totalDuration));
-        route.setPrice(String.valueOf(totalPrice));
+        route.setDistance(totalDistance);
+        route.setDuration(totalDuration);
+        route.setPrice(totalPrice);
         routeMapper.insertRoute(route);
         return route;
     }

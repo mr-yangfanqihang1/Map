@@ -100,26 +100,27 @@ export default {
       endSuggestions: [],
       calculatedRoute: '',
       calcError: '',
-      scheduledDate : new Date('2024-10-29T23:00:00+08:00'), // 北京时间为UTC+8
+      scheduledDate : new Date('2024-10-29T22:29:00+08:00'), // 北京时间为UTC+8
 
       routeData: {
           "userId": 0,
           "startId": 0,
           "endId": 0,
-          "distance": "6.481344242197571",
-          "duration": "12.962688484395143",
-          "price": "6.481344242197571",
+          "distance": 0.0,
+          "duration": 0.0,
+          "price": 0.0,
           "routeData": [                 //数据结构：
               {
-                  "startLat": 39.907232799999996,
-                  "startLong": 116.395094,
-                  "endLat": 39.90725,
-                  "endLong": 116.3956123,
-                  "distance": 0.044250989428790195,
-                  "duration": 0.08850197885758039,
-                  "price": 0.044250989428790195,
-                  "status": "绿"
-              }                               
+                  "startLat": 0,
+                  "startLong": 0,
+                  "endLat": 0,
+                  "endLong": 0,
+                  "distance": 0,
+                  "duration": 0,
+                  "price": 0,
+                  "status": "绿",
+                  "roadId":0,
+              }
           ],
           "timestamp": null,
           "priority": 0,
@@ -144,10 +145,7 @@ export default {
   },
   mounted() {
     this.initMap();
-    scheduleUpdateDurationAt(scheduledDate, 77734114,1);
-    // setTimeout(() => {
-    //   this.updateDuration(76457860, 1);
-    // }, 120000);
+    this.schedule(this.scheduledDate, 77734114, 2.0);
   },
   methods: {
     initWebSocket() {
@@ -187,30 +185,33 @@ export default {
 
         client.activate();
     },
-    scheduleUpdateDurationAt(date, roadId, durationAdjustment) {
+    schedule(date, roadId, durationAdjustment) {
     const now = new Date();
     const delay = date.getTime() - now.getTime();
 
     if (delay > 0) {
       setTimeout(() => {
-        updateDuration(roadId, durationAdjustment);
+        this.updateDuration(roadId, durationAdjustment);
       }, delay);
     } else {
       console.error("指定时间已过，请提供一个未来的时间。");
     }
   },
 
-// 定义执行的日期和时间
+
     updateDuration(roadId, durationAdjustment) {
       if (Array.isArray(this.routeData.routeData)) {
         const road = this.routeData.routeData.find((r) => r.roadId === roadId);
         if (road) {
           road.duration += durationAdjustment;
           road.status='红';
-          this.routeData.duration += durationAdjustment;
+          alert("old duration:" + this.routeData.duration);
+          this.routeData.duration =this.routeData.duration+ durationAdjustment;
+          alert("new duration: " + this.routeData.duration);
           this.outputAndDrawRoute();
+          alert("new duration: " + this.routeData.duration);
         }
-        alert("new duration: " + this.routeData.duration);
+        
       } else {
         alert("routeData is not an array.");
       }
