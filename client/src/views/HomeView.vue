@@ -359,11 +359,11 @@ export default {
     // Logic to determine current traffic status based on your criteria
     // For example, you might have conditions based on speed or congestion level
     if (segment.congestionLevel > 70) {
-      return 'red'; // High congestion
+      return '红'; // High congestion
     } else if (segment.congestionLevel > 30) {
-      return 'orange'; // Moderate congestion
+      return '橙'; // Moderate congestion
     } else {
-      return 'green'; // Low congestion
+      return '绿'; // Low congestion
     }
   },
 
@@ -398,11 +398,11 @@ export default {
 
   getColorForStatus(status) {
     switch (status) {
-      case 'red':
+      case '红':
         return '#FF0000'; // Red for congested
-      case 'orange':
+      case '橙':
         return '#FFA500'; // Orange for moderate
-      case 'green':
+      case '绿':
         return '#008000'; // Green for clear
       default:
         return '#CCCCCC'; // Default color if status is unknown
