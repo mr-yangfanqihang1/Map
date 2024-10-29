@@ -65,37 +65,45 @@ public class RoadService {
     }
 
     // 从redis获取所有道路数据
-    public List<Road> getAllRoads() {
-    List<Road> roads = new ArrayList<>();
-    String pattern = "roadData:roadId:*";
-    
-    try {
-        // 获取所有匹配的键
-        Set<String> keys = redisTemplate.keys(pattern);
+    // 支持分页的 getAllRoads 方法
+    public List<Road> getAllRoads(int offset, int limit) {
+        List<Road> roads = new ArrayList<>();
         
-        if (keys != null && !keys.isEmpty()) {
-            // 根据键逐个获取值
-            for (String key : keys) {
-                Road road = (Road) valueOps.get(key);
-                if (road != null) {
-                    roads.add(road);
-                }
-            }
+        try (Cursor<byte[]> cursor = scanKeys("roadData:roadId:*")) {
+            int currentIndex = 0;
             
-            if (!roads.isEmpty()) {
-                System.out.println("Get all roads from Redis");
-                return roads;
+            while (cursor != null && cursor.hasNext()) {
+                String key = new String(cursor.next());
+                
+                if (currentIndex >= offset && roads.size() < limit) {
+                    Road road = (Road) valueOps.get(key);
+                    
+                    if (road != null) {
+                        roads.add(road);
+                    }
+                }
+                
+                currentIndex++;
+                if (roads.size() >= limit) break;
+            }
+        } catch (Exception e) {
+            System.err.println("Error while getting all roads from Redis: " + e.getMessage());
+        }
+        if (roads.isEmpty()) {
+            System.out.println("Data not found in Redis, querying database...");
+            roads = roadMapper.getAllRoads();
+            
+            for (Road road : roads) {
+                valueOps.set("roadData:roadId:" + road.getId(), road);
             }
         }
-        
-        System.out.println("Road data not found in Redis");
-    } catch (Exception e) {
-        System.out.println("Error while getting all roads from Redis: " + e.getMessage());
-        e.printStackTrace();
+        return roads;
     }
-    
-    return roads;
-}
+
+    private Cursor<byte[]> scanKeys(String pattern) {
+        return redisTemplate.execute((RedisCallback<Cursor<byte[]>>) connection -> 
+            connection.keyCommands().scan(ScanOptions.scanOptions().match(pattern).count(1000).build()));
+    }
 
     
 

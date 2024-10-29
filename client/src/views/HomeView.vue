@@ -9,9 +9,9 @@
     </div>
     <!-- 路线管理部分，左上角展示已计算的路线信息 -->
     <div class="route-management">
-      <button @click="toggleRoadStatus">{{ showRoadStatus ? 'Hide' : 'Show' }} Road Status</button>
+      <button @click="toggleRoadStatus">{{ showRoadStatus ? '关闭' : '显示' }} 全城道路状态</button>
       <el-row></el-row>
-      <button @click="toggleSmartStatus">{{ smart ? '开启' : '关闭' }}智能调度 </button>
+      <button @click="toggleSmartStatus">{{ smart ? '关闭' : '开启' }} 智能调度 </button>
       <form @submit.prevent="calculateRoute">
         <!-- 用户 ID 输入框 -->
         <input
@@ -100,9 +100,9 @@ export default {
       calculatedRoute: '',
       calcError: '',
       scheduledDate : new Date('2024-10-29T22:29:00+08:00'), // 北京时间为UTC+8
-
+      "smart":false,
       routeData: {
-          "smart":false,
+          
           "userId": 0,
           "startId": 0,
           "endId": 0,
@@ -149,13 +149,20 @@ export default {
   },
   methods: {
     smartRoad(){
-      if (this.smart) {
-        axios.get(`http://localhost:8080/api/smart`)
+    if (this.smart) {
+        axios.get(`http://localhost:8080/api/smart/getIsStatus`)
+            .then(response => {
+                // 成功获取状态后的处理逻辑，比如更新某个状态变量
+                console.log("Status fetched:", response.data);
+            })
             .catch(error => {
-              console.error('Error fetching start points:', error.response ? error.response.data : error);
+                console.error('Error fetching start points:', error.response ? error.response.data : error);
             });
-      }
-    },
+    } else {
+        // 清除已显示状态的逻辑，比如重置某个状态变量
+        console.log("Clearing displayed statuses");
+    }
+  },
     initWebSocket() {
         const userId = this.calculateInput.userId;
         if (!userId) {
@@ -508,6 +515,7 @@ startMovingIcon(routeData) {
   },
   toggleSmartStatus() {
     this.smart = !this.smart;
+    console.log(this.smart);
     if (this.smart) {
       this.smartRoad(); // Fetch and display road statuses
     }
@@ -516,34 +524,63 @@ startMovingIcon(routeData) {
     // }
   },
 
-  displayRoadStatus() {
-  axios.get('http://localhost:8080/api/roads/all') // 根据需要调整API端点
-    .then(response => {
-      response.data.forEach(road => {
-        const path = [
-          [road.startLong, road.startLat], // 起点坐标
-          [road.endLong, road.endLat]      // 终点坐标
-        ];
+  async displayRoadStatus() {
+    const batchSize = 1000; // 每批加载的条数，具体数量可根据后端支持及数据量调整
+    let offset = 0;
+    let totalRoadsLoaded = false;
 
-        // 根据道路状态获取颜色
-        const color = this.getColorForStatus(road.status); 
-
-        // 创建带有特定颜色的折线
-        const polyline = new AMap.Polyline({
-          path: path,
-          strokeColor: color,
-          strokeWeight: 6,
-          strokeOpacity: 0.8,
-          lineJoin: 'round',
-          strokeStyle: 'solid'
+    while (!totalRoadsLoaded) {
+      try {
+        // 分批获取道路状态
+        const response = await axios.get(`http://localhost:8080/api/roads/all`, {
+          params: { offset, limit: batchSize } // 假设后端支持 offset 和 limit 参数
         });
 
-        // 将折线添加到地图上
-        polyline.setMap(this.map);
+        const roads = response.data;
+
+        // 检查是否已经加载完全部数据
+        if (roads.length < batchSize) {
+          totalRoadsLoaded = true;
+        } else {
+          offset += batchSize;
+        }
+
+        // 使用 Promise.all 并发处理当前批次的道路数据
+        await Promise.all(
+          roads.map(road => this.renderRoadOnMap(road))
+        );
+
+      } catch (error) {
+        console.error('Error fetching road status in batch:', error);
+        totalRoadsLoaded = true; // 出现错误则停止加载
+      }
+    }
+  },
+
+  // 渲染单条道路的方法
+  renderRoadOnMap(road) {
+    return new Promise(resolve => {
+      const path = [
+        [road.startLong, road.startLat],
+        [road.endLong, road.endLat]
+      ];
+
+      const color = this.getColorForStatus(road.status);
+
+      const polyline = new AMap.Polyline({
+        path: path,
+        strokeColor: color,
+        strokeWeight: 6,
+        strokeOpacity: 0.8,
+        lineJoin: 'round',
+        strokeStyle: 'solid'
       });
-    })
-    .catch(error => console.error('Error fetching road status:', error));
-},
+
+      // 将折线添加到地图上
+      polyline.setMap(this.map);
+      resolve(); // 标记当前道路渲染完成
+    });
+  },
 
     clearRoadStatus() {
       this.map.clearMap(); // Clear all overlays from the map

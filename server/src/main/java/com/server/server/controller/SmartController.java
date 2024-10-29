@@ -21,5 +21,4 @@ public class SmartController {
         routeServiceImpl.setIsStatus();
         return isStatus;
     }
-
 }

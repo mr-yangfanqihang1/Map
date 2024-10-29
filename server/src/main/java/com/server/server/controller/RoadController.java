@@ -32,8 +32,9 @@ public class RoadController {
      * @return 道路列表
      */
     @GetMapping("/all")
-    public List<Road> getAllRoads() {
-        return roadService.getAllRoads();
+    public List<Road> getAllRoads(@RequestParam(defaultValue = "0") int offset, 
+                                  @RequestParam(defaultValue = "10") int limit) {
+        return roadService.getAllRoads(offset, limit);
     }
 
     /**
