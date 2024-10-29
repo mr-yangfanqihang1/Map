@@ -470,12 +470,16 @@ export default {
     axios.get('http://localhost:8080/api/roads/all') // Adjust API endpoint as needed
         .then(response => {
           response.data.forEach(road => {
-            const color = this.getColorForStatus(road.status); // Get color based on status
-            const polyline = new AMap.Polyline({
-              path: road.coordinates, // Assuming coordinates are provided in the response
-              strokeColor: color,
-              strokeWeight: 6,
-            });
+           const path = [
+          [road.startLong, road.startLat], // 起点坐标
+          [road.endLong, road.endLat]      // 终点坐标
+        ];
+        
+        const polyline = new AMap.Polyline({
+          path: path,
+          strokeColor: color,
+          strokeWeight: 6,
+        });
             polyline.setMap(this.map);
           });
         })
