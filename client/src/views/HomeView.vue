@@ -336,52 +336,85 @@ export default {
       }
     },
 
-    drawRoute(routeData) {
-      if (this.polyline) {
-        this.polyline.setMap(null);
-      }
+    drawRoute() {
+  if (!this.routeData || !Array.isArray(this.routeData.routeData)) {
+    console.error("this.routeData.routeData 未定义或不是数组。");
+    return;
+  }
 
-      const routePath = routeData.flatMap((segment) => {
-        return [
-          [segment.startLong, segment.startLat],
-          [segment.endLong, segment.endLat]
-        ];
-      });
+  if (this.routeData.routeData.length === 0) {
+    console.warn("routeData.routeData 数组为空。");
+    return;
+  }
 
-      this.polyline = new AMap.Polyline({
-        path: routePath,
-        borderWeight: 6,
-        strokeColor: '#33A1C9',
-        strokeOpacity: 0.8,
-        strokeWeight: 5,
-        lineJoin: 'round',
-        strokeStyle: 'solid',
-      });
+  if (this.polyline) {
+    this.polyline.setMap(null);
+  }
 
-      this.polyline.setMap(this.map);
-      this.map.setFitView([this.polyline]);
-      this.startMovingIcon(routeData); // Start moving icon after drawing route
-    },
-    startMovingIcon(routeData) {
-    if (this.movingIcon) {
-      this.movingIcon.setMap(null); // 移除上一个图标
+  this.routeData.routeData.forEach((segment) => {
+    if (
+      segment.startLong === undefined || 
+      segment.startLat === undefined || 
+      segment.endLong === undefined || 
+      segment.endLat === undefined
+    ) {
+      console.error("segment 坐标未定义", segment);
+      return;
     }
 
-    const icon = new AMap.Icon({
-      image: require('@/assets/logo.png'), // 图标路径
-      size: new AMap.Size(32, 32), // 图标大小
-      imageSize: new AMap.Size(32, 32) // 图片大小，保持与图标一致
+    const routePath = [
+      [segment.startLong, segment.startLat],
+      [segment.endLong, segment.endLat]
+    ];
+
+    const color = this.getColorForStatus(segment.status);
+
+    const polyline = new AMap.Polyline({
+      path: routePath,
+      borderWeight: 6,
+      strokeColor: color,
+      strokeOpacity: 0.8,
+      strokeWeight: 5,
+      lineJoin: 'round',
+      strokeStyle: 'solid',
     });
 
-    this.movingIcon = new AMap.Marker({
-      position: [routeData[0].startLong, routeData[0].startLat],
-      icon: icon,
-      map: this.map,
-      offset: new AMap.Pixel(-16, -16) // 调整偏移，使图标居中
-    });
+    polyline.setMap(this.map);
+    if (!this.polylines) {
+      this.polylines = [];
+    }
+    this.polylines.push(polyline);
+  });
 
-    this.moveAlongRoute(routeData);
-  },
+  this.map.setFitView();
+  this.startMovingIcon(this.routeData.routeData);
+},
+startMovingIcon(routeData) {
+  // 检查 routeData 是否定义且不为空
+  if (!routeData || routeData.length === 0) {
+    console.error("routeData 未定义或为空数组，无法启动移动图标。");
+    return;
+  }
+
+  if (this.movingIcon) {
+    this.movingIcon.setMap(null); // 移除上一个图标
+  }
+
+  const icon = new AMap.Icon({
+    image: require('@/assets/logo.png'), // 图标路径
+    size: new AMap.Size(32, 32), // 图标大小
+    imageSize: new AMap.Size(32, 32) // 图片大小，保持与图标一致
+  });
+
+  this.movingIcon = new AMap.Marker({
+    position: [routeData[0].startLong, routeData[0].startLat],
+    icon: icon,
+    map: this.map,
+    offset: new AMap.Pixel(-16, -16) // 调整偏移，使图标居中
+  });
+
+  this.moveAlongRoute(routeData);
+},
 
     moveAlongRoute(routeData) {
     // 清除当前的定时器，确保只启动一个
@@ -474,7 +507,7 @@ export default {
           [road.startLong, road.startLat], // 起点坐标
           [road.endLong, road.endLat]      // 终点坐标
         ];
-        
+        const color = this.getColorForStatus(road.status); // Get color based on status
         const polyline = new AMap.Polyline({
           path: path,
           strokeColor: color,
