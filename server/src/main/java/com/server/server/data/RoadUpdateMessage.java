@@ -24,4 +24,11 @@ public class RoadUpdateMessage {
     public void setDurationAdjustment(double durationAdjustment) {
         this.durationAdjustment = durationAdjustment;
     }
+    @Override
+    public String toString() {
+        return "RoadUpdateMessage{" +
+                "roadId=" + roadId +
+                ", durationAdjustment=" + durationAdjustment +
+                '}';
+    }
 }

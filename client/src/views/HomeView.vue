@@ -100,7 +100,34 @@ export default {
       endSuggestions: [],
       calculatedRoute: '',
       calcError: '',
-      routeData: null,       // 用于存储计算后的路线数据
+      scheduledDate : new Date('2024-10-29T23:00:00+08:00'), // 北京时间为UTC+8
+
+      routeData: {
+          "userId": 0,
+          "startId": 0,
+          "endId": 0,
+          "distance": "6.481344242197571",
+          "duration": "12.962688484395143",
+          "price": "6.481344242197571",
+          "routeData": [                 //数据结构：
+              {
+                  "startLat": 39.907232799999996,
+                  "startLong": 116.395094,
+                  "endLat": 39.90725,
+                  "endLong": 116.3956123,
+                  "distance": 0.044250989428790195,
+                  "duration": 0.08850197885758039,
+                  "price": 0.044250989428790195,
+                  "status": "绿"
+              }                               
+          ],
+          "timestamp": null,
+          "priority": 0,
+          "requestTime": null,
+          "distanceWeight": 0,
+          "durationWeight": 0,
+          "priceWeight": 0
+      },       // 用于存储计算后的路线数据
       isUserIdReadonly: false,
       isLoading: false, // 添加加载状态
       isCalculationComplete: false, // 添加计算完成状态
@@ -117,51 +144,77 @@ export default {
   },
   mounted() {
     this.initMap();
+    scheduleUpdateDurationAt(scheduledDate, 77734114,1);
+    // setTimeout(() => {
+    //   this.updateDuration(76457860, 1);
+    // }, 120000);
   },
   methods: {
     initWebSocket() {
-    const userId = this.calculateInput.userId;
-    
-    // 使用 SockJS 作为传输层
-    const socket = new SockJS("http://localhost:8080/ws");
-    const client = new Client({
-      webSocketFactory: () => socket, // 使用 SockJS
-      connectHeaders: {
-        login: "guest",
-        passcode: "guest",
-      },
-      onConnect: () => {
-        console.log('WebSocket connected');
-        // 订阅用户专属的队列
-        client.subscribe(`/user/${userId}/queue/roadUpdates`, (message) => {
-          const update = JSON.parse(message.body);
-          console.log(update);
-          this.updateDuration(update.roadId, update.durationAdjustment);
+        const userId = this.calculateInput.userId;
+        if (!userId) {
+            console.error("User ID is undefined. WebSocket cannot be initialized.");
+            return;
+        }
+
+        console.log("Initializing WebSocket for user:", userId);
+        const socket = new SockJS("http://localhost:8080/ws");
+        const client = new Client({
+            webSocketFactory: () => socket,
+            connectHeaders: {
+                login: "guest",
+                passcode: "guest",
+            },
+            onConnect: () => {
+                const subscriptionPath = `/user/${userId}/queue/roadUpdates`;
+                console.log(`Subscribing to: ${subscriptionPath}`);
+                client.subscribe(subscriptionPath, (message) => {
+                    console.log("Received message from WebSocket:", message.body); // 确认 message.body 存在
+                    if (message.body) {
+                        const update = JSON.parse(message.body);
+                        console.log("Parsed update:", update);
+                        this.updateDuration(update.roadId, update.durationAdjustment);
+                    }
+                });
+            },
+            onStompError: (error) => console.error('STOMP error:', error),
+            onWebSocketError: (error) => console.error('WebSocket error:', error),
+            onWebSocketClose: () => {
+                console.log('WebSocket closed. Attempting to reconnect...');
+                setTimeout(() => this.initWebSocket(), 1000);
+            }
         });
-      },
-      onStompError: (error) => {
-        console.error('STOMP 错误:', error);
-      },
-      onWebSocketError: (error) => {
-        console.error('WebSocket error:', error);
-      },
-      onWebSocketClose: () => {
-        console.log('WebSocket closed. Attempting to reconnect...');
-        setTimeout(() => this.initWebSocket(), 1000); // 自动重连机制
-      }
-    });
 
-    client.activate();
-  },
+        client.activate();
+    },
+    scheduleUpdateDurationAt(date, roadId, durationAdjustment) {
+    const now = new Date();
+    const delay = date.getTime() - now.getTime();
 
-  updateDuration(roadId, durationAdjustment) {
-    const road = this.routeData.find((r) => r.roadId === roadId);
-    if (road) {
-      road.duration += durationAdjustment;
-      this.totalDuration += durationAdjustment;
+    if (delay > 0) {
+      setTimeout(() => {
+        updateDuration(roadId, durationAdjustment);
+      }, delay);
+    } else {
+      console.error("指定时间已过，请提供一个未来的时间。");
     }
-    console.log("new duration: "+this.totalDuration);
   },
+
+// 定义执行的日期和时间
+    updateDuration(roadId, durationAdjustment) {
+      if (Array.isArray(this.routeData.routeData)) {
+        const road = this.routeData.routeData.find((r) => r.roadId === roadId);
+        if (road) {
+          road.duration += durationAdjustment;
+          road.status='红';
+          this.routeData.duration += durationAdjustment;
+          this.outputAndDrawRoute();
+        }
+        alert("new duration: " + this.routeData.duration);
+      } else {
+        alert("routeData is not an array.");
+      }
+    },
 
   setUserIdFromUrl() {
     const url = window.location.href;
@@ -244,7 +297,6 @@ export default {
       // 选择终点后立即计算路线
       this.calculateRoute();
     },
-    // 其他方法保持不变
     calculateRoute() {
       this.calcError = '';
       this.calculatedRoute = '';

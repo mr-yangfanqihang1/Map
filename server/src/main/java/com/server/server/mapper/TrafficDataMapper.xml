@@ -17,27 +17,27 @@
     <update id="batchUpdateTrafficData" parameterType="list">
         UPDATE traffic_data
         SET 
-            id = CASE user_id
+            id = CASE 
                 <foreach collection="trafficDataList" item="item">
-                    WHEN #{item.userId} THEN #{item.Id}
+                    WHEN user_id = #{item.userId} THEN #{item.Id}
                 </foreach>
                 ELSE id
             END,
-            speed = CASE user_id
+            speed = CASE 
                 <foreach collection="trafficDataList" item="item">
-                    WHEN #{item.userId} THEN #{item.speed}
+                    WHEN user_id = #{item.userId} THEN #{item.speed}
                 </foreach>
                 ELSE speed
             END,
-            timestamp = CASE user_id
+            timestamp = CASE 
                 <foreach collection="trafficDataList" item="item">
-                    WHEN #{item.userId} THEN #{item.timestamp}
+                    WHEN user_id = #{item.userId} THEN #{item.timestamp}
                 </foreach>
                 ELSE timestamp
             END,
-            road_id = CASE user_id
+            road_id = CASE 
                 <foreach collection="trafficDataList" item="item">
-                    WHEN #{item.userId} THEN #{item.roadId}
+                    WHEN user_id = #{item.userId} THEN #{item.roadId}
                 </foreach>
                 ELSE road_id
             END
