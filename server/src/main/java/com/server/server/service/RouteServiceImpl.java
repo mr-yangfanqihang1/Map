@@ -29,8 +29,6 @@ public class RouteServiceImpl implements RouteService {
     @Autowired
     private UserService userService;
     @Autowired
-    private SmartService smartService;
-    @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     private static final String REDIS_ROUTE_PREFIX = "route:";
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -140,7 +138,7 @@ public class RouteServiceImpl implements RouteService {
         route.getDurationWeight(),
         route.getPriceWeight()
     );
-    if (existingRoute!=null){
+    if (existingRoute!=null&& isStatus==false){
         System.out.println("Found existing route in database" );
         return existingRoute;
     } 
@@ -171,7 +169,6 @@ public class RouteServiceImpl implements RouteService {
 
         return calculatedRoute;
     }
-    @SuppressWarnings("unchecked")
     private Map<String, Integer> getUserWeights(String preferencesJson) {
         try {
             System.out.println("Parsing user weights from preferences: " + preferencesJson);
@@ -207,7 +204,6 @@ public class RouteServiceImpl implements RouteService {
             if (openListJson != null && closedListJson != null && currentNodeJson != null) {
                 openList.addAll(objectMapper.readValue(openListJson, objectMapper.getTypeFactory().constructCollectionType(PriorityQueue.class, Node.class)));
                 closedList.addAll(objectMapper.readValue(closedListJson, objectMapper.getTypeFactory().constructCollectionType(Set.class, Road.class)));
-                Node currentNode = objectMapper.readValue(currentNodeJson, Node.class);
                 System.out.println("Successfully restored A* state from Redis for user: " + userId);
                 return true;
             }

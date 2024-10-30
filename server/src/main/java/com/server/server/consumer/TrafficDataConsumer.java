@@ -10,12 +10,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReadWriteLock;
 import org.apache.ibatis.exceptions.PersistenceException;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.actuate.endpoint.web.PathMapper;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.stereotype.Component;
-
 import com.server.server.data.*;
 import com.server.server.mapper.RoadMapper;
 import com.server.server.mapper.TrafficDataMapper;
@@ -322,7 +318,7 @@ public class TrafficDataConsumer implements Runnable {
                 }
                 // Step 6: 更新 Redis、数据库 中的数据
                 valueOps.set("roadData:roadId:" + road.getId(), road);
-                roadMapper.updateRoad(road);
+                roadMapper.updateRoadStatus(road.getId(), road.getStatus());
                 //System.out.println("Updated road status for roadId: " + road.getId());
             } catch (Exception e) {
                 System.out.println("Error while updating road status for roadId: " + roadTrafficData.getRoadId() + ": " + e.getMessage());
@@ -375,7 +371,8 @@ public class TrafficDataConsumer implements Runnable {
     }
 
 
-    // 从 Redis 中读取道路对象并批量更新到数据库
+    // 从 Redis 中读取道路对象并批量更新到数据库  (与checkANDupdate重复)
+    @SuppressWarnings("unused")
     private void updateRoadDataFromRedis() {
         System.out.println("updating RoadData From redis");
         Set<String> roadKeysSet = redisTemplate.keys("roadData:roadId:*");
@@ -417,19 +414,15 @@ public class TrafficDataConsumer implements Runnable {
     // 调整优先级
     private void adjustPriorities() {
         long currentTime = System.currentTimeMillis();
-
         PriorityBlockingQueue<TrafficDataRequest> tempQueue = new PriorityBlockingQueue<>(queue.size());
-
         while (!queue.isEmpty()) {
             TrafficDataRequest request = queue.poll();
-
             if (request != null && currentTime - request.getCreatedTime() > 500) {
                 request.increasePriority();
+                System.out.println("Adjusted priority for request");
             }
-
             tempQueue.offer(request);
         }
-
         queue.addAll(tempQueue);
     }
 

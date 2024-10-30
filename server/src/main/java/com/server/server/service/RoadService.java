@@ -2,8 +2,6 @@ package com.server.server.service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;

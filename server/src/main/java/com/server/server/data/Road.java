@@ -15,6 +15,10 @@ public class Road {
     private double startLong;  // 起点经度
     private double endLat;     // 终点纬度
     private double endLong;    // 终点经度
+    private double endLat2;     // 终点纬度
+    private double endLong2;    // 终点经度
+    private double endLat3;     // 终点纬度
+    private double endLong3;    // 终点经度
     private double distance;   // 距离
     private double duration;   // 时间
     private double price;      // 价格
@@ -67,7 +71,6 @@ public class Road {
 
         return earthRadius * c; // 返回距离，单位千米
     }
-
     public long getId() {
         return id;
     }

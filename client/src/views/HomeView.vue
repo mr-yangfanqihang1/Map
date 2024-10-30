@@ -138,15 +138,16 @@ export default {
       currentSegmentIndex: 0, // Track current segment index for movement
     };
   },
+  
   created() {
     this.setUserIdFromUrl(); // 设置用户 ID并在找到用户 ID 时连接 WebSocket
   },
   mounted() {
     this.initMap();
-    this.schedule(this.scheduledDate, 77734114, 2.0);
+    this.schedule( 1673308873, 2.0);
   },
   methods: {
-
+    
     initWebSocket() {
         const userId = this.calculateInput.userId;
         if (!userId) {
@@ -184,18 +185,13 @@ export default {
 
         client.activate();
     },
-    schedule(date, roadId, durationAdjustment) {
-    const now = new Date();
-    const delay = date.getTime() - now.getTime();
-
-    if (delay > 0) {
-      setTimeout(() => {
+    schedule(roadId,durationAdjustment) {
+    const interval = 60 * 1000; 
+    this.intervalId = setInterval(() => {
         this.updateDuration(roadId, durationAdjustment);
-      }, delay);
-    } else {
-      console.error("指定时间已过，请提供一个未来的时间。");
-    }
-  },
+    }, interval);
+},
+
 
 
     updateDuration(roadId, durationAdjustment) {
@@ -204,9 +200,7 @@ export default {
         if (road) {
           road.duration += durationAdjustment;
           road.status='红';
-          alert("old duration:" + this.routeData.duration);
           this.routeData.duration =this.routeData.duration+ durationAdjustment;
-          alert("new duration: " + this.routeData.duration);
           this.outputAndDrawRoute();
           alert("new duration: " + this.routeData.duration);
         }
@@ -301,7 +295,7 @@ export default {
       this.calcError = '';
       this.calculatedRoute = '';
       this.showPendingMessage = true; // 显示计算提示
-
+      this.map.clearMap();
       // 调用后端计算路线并将数据存储到 routeData 中
       axios.post('http://localhost:8080/api/routes/calculate', this.calculateInput)
           .then(response => {
@@ -441,7 +435,7 @@ startMovingIcon(routeData) {
   updateTrafficData(segment) {
   const data = {
     roadId: segment.roadId,
-    userId: Math.floor(Math.random() * 1000) + 1, // 生成1到1000的随机数
+    userId: this.calculateInput.userId,
     speed: parseFloat((Math.random() * 100).toFixed(2)), // 生成0到100的随机速度，保留两位小数
     timestamp: new Date().toISOString().slice(0, 19).replace("T", " ") // 转换为 MySQL 支持的格式
   };
@@ -523,52 +517,68 @@ startMovingIcon(routeData) {
 },
 
 
-  async displayRoadStatus() {
-    const batchSize = 1000; // 每批加载的条数，具体数量可根据后端支持及数据量调整
-    let offset = 0;
-    let totalRoadsLoaded = false;
+async displayRoadStatus() {
+  const batchSize = 1000; // 每批加载的条数
+  let offset = 0;
+  let totalRoadsLoaded = false;
 
-    while (!totalRoadsLoaded) {
-      try {
-        // 分批获取道路状态
-        const response = await axios.get(`http://localhost:8080/api/roads/all`, {
-          params: { offset, limit: batchSize } // 假设后端支持 offset 和 limit 参数
-        });
+  while (!totalRoadsLoaded) {
+    try {
+      // 分批获取道路状态
+      const response = await axios.get(`http://localhost:8080/api/roads/all`, {
+        params: { offset, limit: batchSize }
+      });
 
-        const roads = response.data;
+      const roads = response.data;
 
-        // 检查是否已经加载完全部数据
-        if (roads.length < batchSize) {
-          totalRoadsLoaded = true;
-        } else {
-          offset += batchSize;
-        }
-
-        // 使用 Promise.all 并发处理当前批次的道路数据
-        await Promise.all(
-          roads.map(road => this.renderRoadOnMap(road))
-        );
-
-      } catch (error) {
-        console.error('Error fetching road status in batch:', error);
-        totalRoadsLoaded = true; // 出现错误则停止加载
+      // 检查是否已经加载完全部数据
+      if (roads.length < batchSize) {
+        totalRoadsLoaded = true;
+      } else {
+        offset += batchSize;
       }
+
+      // 使用 Promise.all 并发处理当前批次的道路数据
+      await Promise.all(
+        roads.map(road => this.renderRoadOnMap(road))
+      );
+
+    } catch (error) {
+      console.error('Error fetching road status in batch:', error);
+      totalRoadsLoaded = true; // 出现错误则停止加载
     }
-  },
+  }
+},
 
-  // 渲染单条道路的方法
-  renderRoadOnMap(road) {
-    return new Promise(resolve => {
-      const path = [
+// 渲染单条道路的方法
+renderRoadOnMap(road) {
+  return new Promise(resolve => {
+    const paths = [[
+      [road.startLong, road.startLat],
+      [road.endLong, road.endLat]
+    ]];
+
+    // 检查并添加第二个终点
+    if (road.endLat2 !== 0.0 ) {
+      paths.push([
         [road.startLong, road.startLat],
-        [road.endLong, road.endLat]
-      ];
+        [road.endLong2, road.endLat2]
+      ]);
+    }
 
-      const color = this.getColorForStatus(road.status);
+    // 检查并添加第三个终点
+    if (road.endLat3 !== 0.0 ) {
+      paths.push([
+        [road.startLong, road.startLat],
+        [road.endLong3, road.endLat3]
+      ]);
+    }
 
+    // 使用 Promise.all 渲染所有路径
+    Promise.all(paths.map(path => {
       const polyline = new AMap.Polyline({
         path: path,
-        strokeColor: color,
+        strokeColor: this.getColorForStatus(road.status),
         strokeWeight: 6,
         strokeOpacity: 0.8,
         lineJoin: 'round',
@@ -577,26 +587,27 @@ startMovingIcon(routeData) {
 
       // 将折线添加到地图上
       polyline.setMap(this.map);
-      resolve(); // 标记当前道路渲染完成
-    });
-  },
+    })).then(resolve); // 标记当前道路渲染完成
+  });
+},
 
-    clearRoadStatus() {
-      this.map.clearMap(); // Clear all overlays from the map
-    },
+clearRoadStatus() {
+  this.map.clearMap(); // 清除地图上的所有覆盖物
+},
 
-  getColorForStatus(status) {
-    switch (status) {
-      case '红':
-        return '#FF0000'; // Red for congested
-      case '橙':
-        return '#FFA500'; // Orange for moderate
-      case '绿':
-        return '#008000'; // Green for clear
-      default:
-        return '#CCCCCC'; // Default color if status is unknown
-    }
-  },
+getColorForStatus(status) {
+  switch (status) {
+    case '红':
+      return '#FF0000'; // 红色表示拥堵
+    case '橙':
+      return '#FFA500'; // 橙色表示中等
+    case '绿':
+      return '#008000'; // 绿色表示畅通
+    default:
+      return '#CCCCCC'; // 默认颜色表示未知状态
+  }
+},
+
   },
 };
 </script>
