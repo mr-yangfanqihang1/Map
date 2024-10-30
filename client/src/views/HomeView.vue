@@ -4,15 +4,16 @@
     <!-- 个人中心按钮，位于右上角 -->
     <div class="user-profile">
       <router-link :to="`/user/${calculateInput.userId}`">
-        <button>个人中心</button>
+        <button v-if="calculateInput.userId !== '0'">个人中心</button>
       </router-link>
     </div>
     <!-- 路线管理部分，左上角展示已计算的路线信息 -->
     <div class="route-management">
-      <button @click="toggleRoadStatus">{{ showRoadStatus ? '关闭' : '显示' }} 全城道路状态</button>
+      <button  @click="toggleRoadStatus">{{ showRoadStatus ? '关闭' : '显示' }} 全城道路状态</button>
       <el-row></el-row>
-      <button @click="toggleSmartStatus">{{ smart ? '关闭' : '开启' }} 智能调度 </button>
-      <form @submit.prevent="calculateRoute">
+      <button v-if="calculateInput.userId === '0'" @click="toggleSmartStatus" style="margin-top: 10px">{{ smart ? '关闭' : '开启' }} 全城智能调度 </button>
+
+      <form @submit.prevent="calculateRoute" v-if="calculateInput.userId !== '0'">
         <!-- 用户 ID 输入框 -->
         <input
             v-model="calculateInput.userId"
@@ -32,7 +33,7 @@
         <input
             v-model="startInput"
             @input="searchStartPoints"
-            placeholder="Startpoint"
+            placeholder="输入起点"
             required
         />
         <ul v-if="startSuggestions.length" class="suggestions-list">
@@ -51,7 +52,7 @@
         <input
             v-model="endInput"
             @input="searchEndPoints"
-            placeholder="Endpoint"
+            placeholder="输入终点"
             required
         />
         <ul v-if="endSuggestions.length" class="suggestions-list">
@@ -61,18 +62,15 @@
         </ul>
       </form>
 
-      <form @submit.prevent="outputAndDrawRoute">
+      <form @submit.prevent="outputAndDrawRoute" v-if="calculateInput.userId !== '0'">
         <!-- 其他输入框保持不变 -->
-        <button type="submit">Calculate Route</button>
+        <button type="submit">计算路径</button>
       </form>
-
 
       <!-- 显示路线绘制完成的提示 -->
       <p v-if="calculatedRoute" class="calculated-info">{{ calculatedRoute }}</p>
       <p v-if="calcError" class="error">{{ calcError }}</p>
       <p v-if="showPendingMessage" class="pending-info">计算尚未完成，请稍候...</p>
-
-
     </div>
   </div>
 </template>
