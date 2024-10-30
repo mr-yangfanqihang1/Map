@@ -136,6 +136,7 @@ public class RoadService {
                 return road; // 仅返回状态为绿色的道路
             } else {
                 // 如果状态不匹配，则返回 null 或者可以处理为其他逻辑
+                System.out.println("Road is not green");
                 return null;
             }
         } else {

@@ -12,20 +12,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class SmartController {
     @Autowired
     private SmartService smartService;
-    @Autowired
-    private RouteServiceImpl routeServiceImpl;
 
     @GetMapping("/getIsStatus")
     public boolean SmartGetIsStatus(){
-        boolean isStatus = smartService.getIsStatus();
-        routeServiceImpl.setIsStatus();
-        return isStatus;
+        RouteServiceImpl.setIsStatus();
+        return RouteServiceImpl.getIsStatus();
     }
     @GetMapping("/returnIsStatus")
     public boolean SmartReturnIsStatus(){
-        boolean isStatus = smartService.returnIsStatus();
-        routeServiceImpl.returnIsStatus();
-        return isStatus;
+        RouteServiceImpl.returnIsStatus();
+        return RouteServiceImpl.getIsStatus();
     }
 
 }

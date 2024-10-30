@@ -36,13 +36,16 @@ public class RouteServiceImpl implements RouteService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final int PRIORITY_LEVELS = 5; // 定义 5 个优先级队列
     private final List<Queue<Route>> priorityQueues = new ArrayList<>(PRIORITY_LEVELS);
-    boolean  isStatus = false;
+    static boolean  isStatus = false;
 
-    public void  setIsStatus(){
+    public static void  setIsStatus(){
         isStatus = true;
     }
-    public void returnIsStatus(){
+    public static void returnIsStatus(){
         isStatus = false;
+    }
+    public static boolean getIsStatus(){
+        return isStatus;
     }
     // 初始化多个优先级队列
     public RouteServiceImpl() {
@@ -147,7 +150,7 @@ public class RouteServiceImpl implements RouteService {
         // 从redis获取起始和结束 Road
         Road startRoad = new Road();
         Road endRoad = new Road();
-        isStatus = smartService.getIsStatus();
+        isStatus =RouteServiceImpl.getIsStatus();
         if(isStatus == false) {
             startRoad = roadService.getRoadById(route.getStartId());
             endRoad = roadService.getRoadById(route.getEndId());
