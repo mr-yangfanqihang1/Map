@@ -148,21 +148,7 @@ export default {
     this.schedule(this.scheduledDate, 77734114, 2.0);
   },
   methods: {
-    smartRoad(){
-    if (this.smart) {
-        axios.get(`http://localhost:8080/api/smart/getIsStatus`)
-            .then(response => {
-                // 成功获取状态后的处理逻辑，比如更新某个状态变量
-                console.log("Status fetched:", response.data);
-            })
-            .catch(error => {
-                console.error('Error fetching start points:', error.response ? error.response.data : error);
-            });
-    } else {
-        // 清除已显示状态的逻辑，比如重置某个状态变量
-        console.log("Clearing displayed statuses");
-    }
-  },
+
     initWebSocket() {
         const userId = this.calculateInput.userId;
         if (!userId) {
@@ -516,13 +502,28 @@ startMovingIcon(routeData) {
   toggleSmartStatus() {
     this.smart = !this.smart;
     console.log(this.smart);
+    
     if (this.smart) {
-      this.smartRoad(); // Fetch and display road statuses
+        axios.get(`http://localhost:8080/api/smart/getIsStatus`)
+            .then(response => {
+                // 成功获取状态后的处理逻辑，比如更新某个状态变量
+                console.log("Status fetched:", response.data);
+            })
+            .catch(error => {
+                console.error('Error fetching start points:', error.response ? error.response.data : error);
+            });
+    } else {
+        axios.get(`http://localhost:8080/api/smart/returnIsStatus`)
+            .then(response => {
+                // 成功获取状态后的处理逻辑，比如更新某个状态变量
+                console.log("Status fetched:", response.data);
+            })
+            .catch(error => {
+                console.error('Error fetching start points:', error.response ? error.response.data : error);
+            });
     }
-    // } else {
-    //   this.smartRoad(); // Clear displayed statuses
-    // }
-  },
+},
+
 
   async displayRoadStatus() {
     const batchSize = 1000; // 每批加载的条数，具体数量可根据后端支持及数据量调整

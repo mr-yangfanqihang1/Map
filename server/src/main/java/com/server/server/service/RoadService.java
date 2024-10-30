@@ -128,19 +128,31 @@ public class RoadService {
     public Road getGreenRoadById(long id) {
         String key = "roadData:roadId:" + id;
         Road road = (Road) valueOps.get(key);
+        
+        // 检查缓存中的道路数据
         if (road != null) {
             // System.out.println("Get road data from Redis: roadId: " + id);
-            return road;
-        } else {
-            //System.out.println("Road data not found in Redis for roadId: " + id);
-            // 如果 Redis 中没有，则从数据库查询并缓存
-            road = roadMapper.getGreenRoadById(id);
-            if (road != null) {
-                valueOps.set(key, road);  // 缓存到 Redis
+            if ("绿".equals(road.getStatus())) {
+                return road; // 仅返回状态为绿色的道路
+            } else {
+                // 如果状态不匹配，则返回 null 或者可以处理为其他逻辑
+                return null;
             }
-            return road;
+        } else {
+            // System.out.println("Road data not found in Redis for roadId: " + id);
+            // 从数据库查询
+            road = roadMapper.getRoadById(id);
+            // 如果查询结果不为空且状态为绿色，则缓存并返回
+            if (road != null && "绿".equals(road.getStatus())) {
+                valueOps.set(key, road);  // 缓存到 Redis
+                return road;
+            }
         }
+        
+        // 如果没有找到或状态不匹配，则返回 null
+        return null;
     }
+    
 
     // 获取相邻道路信息
     public List<Road> getNeighbors(long id) {
