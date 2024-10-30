@@ -1,34 +1,14 @@
 package com.server.server.data;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
 public class RoadUpdateMessage {
+    private int userId;
     private long roadId;
     private double durationAdjustment;
 
-    public RoadUpdateMessage(long roadId, double durationAdjustment) {
-        this.roadId = roadId;
-        this.durationAdjustment = durationAdjustment;
-    }
-
-    public long getRoadId() {
-        return roadId;
-    }
-
-    public void setRoadId(long roadId) {
-        this.roadId = roadId;
-    }
-
-    public double getDurationAdjustment() {
-        return durationAdjustment;
-    }
-
-    public void setDurationAdjustment(double durationAdjustment) {
-        this.durationAdjustment = durationAdjustment;
-    }
-    @Override
-    public String toString() {
-        return "RoadUpdateMessage{" +
-                "roadId=" + roadId +
-                ", durationAdjustment=" + durationAdjustment +
-                '}';
-    }
 }

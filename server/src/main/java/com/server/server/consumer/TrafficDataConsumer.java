@@ -308,7 +308,7 @@ public class TrafficDataConsumer implements Runnable {
                     List<Integer> affectedUserIds = routeMapper.getUsersByRoadId(roadTrafficData.getRoadId());
                     // 通知受影响的用户
                     for (Integer userId : affectedUserIds) {
-                        roadStatusWebSocketService.notifyUser(userId, roadTrafficData.getRoadId(), durationAdjustment);
+                        roadStatusWebSocketService.notifyUser( new RoadUpdateMessage(userId, roadTrafficData.getRoadId(), durationAdjustment));
                         System.out.println("notified user: " + userId);
                     }
                     road.setDuration(newDuration);

@@ -79,13 +79,12 @@
 // eslint-disable-next-line no-undef
 /* global AMap */
 import axios from 'axios';
-import SockJS from "sockjs-client";
-import { Client } from "@stomp/stompjs";
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 export default {
   name: 'MapWithNavigation',
   data() {
     return {
-      client:null,
       calculateInput: {
         userId: '',
         startId: '',
@@ -147,45 +146,42 @@ export default {
     this.schedule( 1673308873, 2.0);
   },
   methods: {
-    
     initWebSocket() {
-        const userId = this.calculateInput.userId;
-        if (!userId) {
-            console.error("User ID is undefined. WebSocket cannot be initialized.");
-            return;
-        }
-
-        console.log("Initializing WebSocket for user:", userId);
-        const socket = new SockJS("http://localhost:8080/ws");
-        const client = new Client({
-            webSocketFactory: () => socket,
-            connectHeaders: {
-                login: "guest",
-                passcode: "guest",
-            },
-            onConnect: () => {
-                const subscriptionPath = `/user/${userId}/queue/roadUpdates`;
-                console.log(`Subscribing to: ${subscriptionPath}`);
-                client.subscribe(subscriptionPath, (message) => {
-                    console.log("Received message from WebSocket:", message.body); // 确认 message.body 存在
-                    if (message.body) {
-                        const update = JSON.parse(message.body);
-                        console.log("Parsed update:", update);
-                        this.updateDuration(update.roadId, update.durationAdjustment);
-                    }
-                });
-            },
-            onStompError: (error) => console.error('STOMP error:', error),
-            onWebSocketError: (error) => console.error('WebSocket error:', error),
-            onWebSocketClose: () => {
-                console.log('WebSocket closed. Attempting to reconnect...');
-                setTimeout(() => this.initWebSocket(), 1000);
+            const userId = this.calculateInput.userId;
+            if (!userId) {
+                console.error("User ID is undefined. WebSocket cannot be initialized.");
+                return;
             }
-        });
+            console.log("Initializing WebSocket for user:", userId);
 
-        client.activate();
-    },
-    schedule(roadId,durationAdjustment) {
+            const socket = new SockJS("http://localhost:8080/ws");
+            const client = new Client({
+                webSocketFactory: () => socket,
+                connectHeaders: {
+                    login: "guest",
+                    passcode: "guest",
+                },
+                onConnect: () => {
+                    console.log("Connected");
+                    console.log("Client methods:", Object.keys(client)); // 打印客户端方法
+                    client.publish({
+                        destination: '/app/notify',
+                        body: JSON.stringify({ userId: parseInt(userId, 10), roadId: 123, durationAdjustment: 1.5 })
+                    });
+                },
+                onStompError: (error) => console.error('STOMP error:', error),
+                onWebSocketError: (error) => console.error('WebSocket error:', error),
+                onWebSocketClose: () => {
+                    console.log('WebSocket closed. Attempting to reconnect...');
+                    setTimeout(() => this.initWebSocket(), 1000);
+                }
+            });
+
+            console.log('Activating STOMP Client...');
+            client.activate();
+        }
+,
+schedule(roadId,durationAdjustment) {
     const interval = 60 * 1000; 
     this.intervalId = setInterval(() => {
         this.updateDuration(roadId, durationAdjustment);
@@ -209,7 +205,6 @@ export default {
         alert("routeData is not an array.");
       }
     },
-
   setUserIdFromUrl() {
     const url = window.location.href;
     const match = url.match(/\/(\d+)$/);
@@ -328,12 +323,11 @@ export default {
         this.calculatedRoute = `全程${roundedDistance}公里，预计时间：${roundedDuration} 分钟，共花费${roundedPrice} 元`;
       }
     },
-
     drawRoute() {
-  if (!this.routeData || !Array.isArray(this.routeData.routeData)) {
-    console.error("this.routeData.routeData 未定义或不是数组。");
-    return;
-  }
+    if (!this.routeData || !Array.isArray(this.routeData.routeData)) {
+      console.error("this.routeData.routeData 未定义或不是数组。");
+      return;
+    }
 
   if (this.routeData.routeData.length === 0) {
     console.warn("routeData.routeData 数组为空。");
