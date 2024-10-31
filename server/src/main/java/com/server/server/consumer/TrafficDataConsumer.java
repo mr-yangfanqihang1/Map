@@ -1,4 +1,5 @@
 package com.server.server.consumer;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -19,29 +20,35 @@ import com.server.server.mapper.UserMapper;
 import com.server.server.request.traffic.*;
 import com.server.server.service.RoadStatusWebSocketService;
 import com.server.server.mapper.RouteMapper;
+
 public class TrafficDataConsumer implements Runnable {
     private final PriorityBlockingQueue<TrafficDataRequest> queue;
     private final TrafficDataMapper trafficDataMapper;
     private final RoadMapper roadMapper;
-    private final UserMapper userMapper;  // 添加 userMapper
+    private final UserMapper userMapper;
     private final ConcurrentHashMap<Integer, List<TrafficData>> queryResults;
     private List<TrafficData> insertBatch = new ArrayList<>();
     private List<TrafficData> updateBatch = new ArrayList<>();
     private static final int BATCH_SIZE = 8; // 批量大小
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(6);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(6, r -> {
+        Thread thread = new Thread(r);
+        thread.setDaemon(true); // 设置守护线程
+        return thread;
+    });
+
     private final RedisTemplate<String, Object> redisTemplate;
     private final ValueOperations<String, Object> valueOps;
     private RoadStatusWebSocketService roadStatusWebSocketService;
 
-    // 非公平锁和读写锁
     private final ReentrantLock nonFairLock = new ReentrantLock(false);
     private final ReadWriteLock readWriteLock = new java.util.concurrent.locks.ReentrantReadWriteLock();
     private RouteMapper routeMapper;
+
     public TrafficDataConsumer(
             PriorityBlockingQueue<TrafficDataRequest> queue,
             TrafficDataMapper trafficDataMapper,
             RoadMapper roadMapper,
-            UserMapper userMapper,  // 传入 userMapper
+            UserMapper userMapper,
             RouteMapper routeMapper,
             ConcurrentHashMap<Integer, List<TrafficData>> queryResults,
             RedisTemplate<String, Object> redisTemplate,
@@ -50,20 +57,16 @@ public class TrafficDataConsumer implements Runnable {
         this.queue = queue;
         this.trafficDataMapper = trafficDataMapper;
         this.roadMapper = roadMapper;
-        this.userMapper = userMapper;  // 初始化 userMapper
+        this.userMapper = userMapper;
         this.queryResults = queryResults;
         this.redisTemplate = redisTemplate;
         this.valueOps = redisTemplate.opsForValue();
         this.routeMapper = routeMapper;
-        this.roadStatusWebSocketService=roadStatusWebSocketService;
-
-        // 初始化时加载所有道路和用户数据到 Redis
+        this.roadStatusWebSocketService = roadStatusWebSocketService;
         loadInitialRoad();
         loadInitialUser();
         loadInitialTrafficData();
     }
-
-    // 在 Redis 中缓存所有道路的初始状态
     private void loadInitialRoad() {
         try {
             System.out.println("Loading initial roads into Redis...");
@@ -85,9 +88,7 @@ public class TrafficDataConsumer implements Runnable {
             e.printStackTrace();
         }
     }
-    
 
-    // 在 Redis 中缓存所有用户的初始状态
     private void loadInitialUser() {
         try {
             System.out.println("Loading initial users into Redis...");
@@ -123,7 +124,6 @@ public class TrafficDataConsumer implements Runnable {
         }
     }
 
-    
     @Override
     public void run() {
         System.out.println("Consumer started!");
@@ -134,17 +134,15 @@ public class TrafficDataConsumer implements Runnable {
         // 定期更新道路状态到 Redis
         scheduler.scheduleAtFixedRate(this::checkAndUpdateAllRoadStatuses, 0, 30, TimeUnit.SECONDS);
 
-        // 定期将 Redis 的状态持久化到数据库
-        //scheduler.scheduleAtFixedRate(this::updateRoadDataFromRedis, 0, 15, TimeUnit.SECONDS);
-        //定期更新user到数据库
+        // 定期更新user到数据库
         scheduler.scheduleAtFixedRate(this::updateUserDataFromRedis, 0, 30, TimeUnit.SECONDS);
+
         // 在构造函数中添加定时批处理任务
         scheduler.scheduleAtFixedRate(this::flushBatches, 0, 5, TimeUnit.SECONDS);
 
         // 处理队列中的请求
         while (true) {
             try {
-                
                 TrafficDataRequest request = queue.take();
                 System.out.println(request);
                 processRequest(request);
@@ -155,6 +153,7 @@ public class TrafficDataConsumer implements Runnable {
             }
         }
     }
+
     private void flushBatches() {
         nonFairLock.lock(); // 获取非公平锁
         try {
