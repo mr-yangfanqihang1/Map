@@ -1,5 +1,4 @@
 package com.server.server.service;
-
 import com.server.server.consumer.TrafficDataConsumer;
 import com.server.server.data.*;
 import com.server.server.mapper.RoadMapper;

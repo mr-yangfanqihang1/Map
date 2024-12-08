@@ -54,6 +54,12 @@ public class RouteController {
         try {
             // 调用 RouteService 计算路径
             Route calculatedRoute = routeService.calculateRoute(route);
+            //延迟100s
+            try {
+                Thread.sleep(121800); // 暂停100秒
+                } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                }
             return ResponseEntity.ok(calculatedRoute);
         } catch (RuntimeException e) {
             // 捕获计算路径时的异常并返回 404 状态和错误消息

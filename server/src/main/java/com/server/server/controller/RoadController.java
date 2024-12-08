@@ -23,6 +23,12 @@ public class RoadController {
      */
     @GetMapping("/name")
     public List<Road> getRoadsByName(@RequestParam String name) {
+         //延迟1s
+         try {
+            Thread.sleep(1350); // 暂停100秒
+            } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            }
         return roadService.getRoadsByName(name);
     }
 
@@ -33,7 +39,7 @@ public class RoadController {
      */
     @GetMapping("/all")
     public List<Road> getAllRoads(@RequestParam(defaultValue = "0") int offset, 
-                                  @RequestParam(defaultValue = "10") int limit) {
+                                  @RequestParam(defaultValue = "1000") int limit) {
         return roadService.getAllRoads(offset, limit);
     }
 

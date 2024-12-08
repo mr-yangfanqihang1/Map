@@ -2,14 +2,14 @@
   <div id="map-container">
     <div id="container"></div>
     <!-- 个人中心按钮，位于右上角 -->
-    <div class="user-profile">
+    <!-- <div class="user-profile">
       <router-link :to="`/user/${calculateInput.userId}`">
         <button v-if="calculateInput.userId !== '0'">个人中心</button>
       </router-link>
-    </div>
+    </div> -->
     <!-- 路线管理部分，左上角展示已计算的路线信息 -->
     <div class="route-management">
-      <button  @click="toggleRoadStatus">{{ showRoadStatus ? '关闭' : '显示' }} 全城道路状态</button>
+      <!-- <button  @click="toggleRoadStatus">{{ showRoadStatus ? '关闭' : '显示' }} 全城道路状态</button> -->
       <el-row></el-row>
       <button v-if="calculateInput.userId === '0'" @click="toggleSmartStatus" style="margin-top: 10px">{{ smart ? '关闭' : '开启' }} 全城智能调度 </button>
 
@@ -182,7 +182,7 @@ export default {
         }
 ,
 schedule(roadId,durationAdjustment) {
-    const interval = 60 * 1000; 
+    const interval = 180 * 1000;
     this.intervalId = setInterval(() => {
         this.updateDuration(roadId, durationAdjustment);
     }, interval);
@@ -317,10 +317,11 @@ schedule(roadId,durationAdjustment) {
     outputAndDrawRoute() {
       if (this.isCalculationComplete && this.routeData && this.routeData.routeData) {
         this.drawRoute(this.routeData.routeData);
-        const roundedDuration = Math.round(this.routeData.duration);
+        //const roundedDuration = Math.round(this.routeData.duration);
         const roundedDistance = Math.round(this.routeData.distance);
-        const roundedPrice = Math.round(this.routeData.price);
-        this.calculatedRoute = `全程${roundedDistance}公里，预计时间：${roundedDuration} 分钟，共花费${roundedPrice} 元`;
+        //const roundedPrice = Math.round(this.routeData.price);
+        this.calculatedRoute = `全程${roundedDistance}公里`;
+        // ，预计时间：${roundedDuration} 分钟，共花费${roundedPrice} 元`;
       }
     },
     drawRoute() {
@@ -552,7 +553,7 @@ renderRoadOnMap(road) {
       [road.endLong, road.endLat]
     ]];
 
-    // 检查并添加第二个终点
+    //检查并添加第二个终点
     if (road.endLat2 !== 0.0 ) {
       paths.push([
         [road.startLong, road.startLat],

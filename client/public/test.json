@@ -1,0 +1,15 @@
+[
+  {
+    "date": "2024-01-01",
+    "client_id": 123,
+    "card_id": 456,
+    "amount": 789.0,
+    "use_chip": "是",
+    "merchant_id": 101,
+    "merchant_city": "北京",
+    "merchant_state": "北京",
+    "zip": 100000,
+    "mcc": 1234,
+    "errors": "无"
+  }
+]
