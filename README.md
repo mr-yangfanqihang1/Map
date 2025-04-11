@@ -1,9 +1,22 @@
-# Server Project
+# 个性化地图导航系统
 
 ## 📖 项目概述
-基于 Spring Boot 3.3.3 和 Vue3 的全栈应用，集成 Redis 缓存、RabbitMQ 消息队列及 MySQL 8.30 数据库，提供高性能的 RESTful API 和实时通信能力。
+实现个性化（距离、时间、价格）导航算法、全城道路状况实时监控、车辆智能调度等功能
+###数据来源
+道路数据来源：OpenStreetMap开源全球道路网站
+前端地图来源：高德地图开发者平台
+###核心算法
+多维度权重计算：
+$$
+Score = \alpha \cdot \frac{1}{distance} + \beta \cdot \frac{1}{time} + \gamma \cdot price
+$$
+其中α,β,γ为用户个性化系数
+###实时道路状态
+基于大量用户数据实时计算路况变化
 
 ## 🛠️ 技术栈
+基于 Spring Boot 3.3.3 和 Vue3 的全栈应用，集成 Redis 缓存、RabbitMQ 消息队列及 MySQL 8.30 数据库，提供高性能的 RESTful API 和实时通信能力。
+
 ### 后端
 • **框架**: Spring Boot 3.3.3 (Java 17)
 • **安全认证**: JWT (JJWT 0.11.2)
@@ -17,14 +30,25 @@
 • **实时通信**: WebSocket
 • **构建工具**: Maven
 
+| 组件        | 优化场景         | 实现方案                          |
+|-------------|------------------|-----------------------------------|
+| Redis       | 实时路况缓存     | 使用GEO数据类型存储道路坐标点     |
+| RabbitMQ    | 导航任务队列     | 设置优先级队列处理VIP用户请求     |
+| Vue3        | 地图渲染性能     | 使用Web Workers处理路线计算       |
+| Spring Boot | 接口响应速度     | 启用GraalVM原生镜像编译           |
 ### 前端
-• Vue3 (需单独配置前端项目)
-
-## ⚙️ 环境配置
+• Vue3
+```bash
+ npm install     #配置环境
+ npm run serve   #启动
+```
+## ⚙️ 后端环境配置
 ### 依赖安装
+后端：
 ```bash
 mvn clean install
 ```
+前端：
 
 ### 数据库配置
 在 `application.yml` 中配置 MySQL 连接：
@@ -49,7 +73,6 @@ spring:
         pool:
           max-active: 20
 ```
-
 ### RabbitMQ 配置
 ```yaml
 spring:
@@ -86,6 +109,10 @@ spring:
 
 ## 🚀 构建与运行
 ### 本地启动
+需要先在控制台启动redis
+```bash
+redis-cli  
+```
 ```bash
 mvn spring-boot:run
 ```
