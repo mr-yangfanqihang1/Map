@@ -125,7 +125,7 @@ spring:
 ### 本地启动
 需要先在控制台启动redis
 ```bash
-redis-cli  
+redis-serve  
 ```
 ```bash
 mvn spring-boot:run
@@ -146,6 +146,5 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 • **MySQL 驱动兼容性**：确保使用 `mysql-connector-j` 9.x 版本。
 
 ---
-
-
+## 项目PPT
 ![alt text](image/2.jpg) ![alt text](image/3.jpg) ![alt text](image/4.jpg) ![alt text](image/5.jpg) ![alt text](image/6.jpg) ![alt text](image/7.jpg) ![alt text](image/8.jpg) ![alt text](image/9.jpg) ![alt text](image/10.jpg) ![alt text](image/11.jpg) ![alt text](image/12.jpg) ![alt text](image/13.jpg) ![alt text](image/14.jpg) ![alt text](image/15.jpg) ![alt text](image/16.jpg) ![alt text](image/17.jpg) ![alt text](image/18.jpg) ![alt text](image/19.jpg) ![alt text](image/20.jpg) ![alt text](image/21.jpg)
