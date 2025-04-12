@@ -13,10 +13,8 @@
 ### 核心算法  
 多维度权重计算：  
 
-$$
-Score = \alpha \cdot \frac{1}{distance} + \beta \cdot \frac{1}{time} + \gamma \cdot price
-$$  
-其中$\alpha,\beta,\gamma$为用户个性化系数  
+![image](https://github.com/user-attachments/assets/9d55a13d-13c8-47dd-9139-4a5605084928)
+
 
 ### 实时道路状态  
 基于大量用户数据实时计算路况变化  
