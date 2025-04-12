@@ -25,15 +25,21 @@
 
 ### 后端
 • **框架**: Spring Boot 3.3.3 (Java 17)
+
 • **安全认证**: JWT (JJWT 0.11.2)
+
 • **数据库**: 
   • MySQL 8.30 (JDBC 驱动 9.0.0)
-  • ORM: Spring Data JPA + MyBatis 3.0.3
+  • ORM: MyBatis 3.0.3
+  
 • **中间件**: 
   • Redis (Spring Data Redis)
   • RabbitMQ (Spring AMQP)
+  
 • **工具库**: Lombok、Gson、Dom4j
+
 • **实时通信**: WebSocket
+
 • **构建工具**: Maven
 
 | 组件        | 优化场景         | 实现方案                          |
