@@ -8,16 +8,17 @@
 [OpenStreetMap](https://www.openstreetmap.org)开源全球道路网站  
 
 ​**​前端地图来源​**​：  
-[高德地图开发者平台](https://lbs.amap.com/)  
+[高德地图开发者平台](https://lbs.amap.com/)  高德地图API
 
 ### 核心算法  
 多维度权重计算：  
+考虑：时间、价格、距离三个因素
 
 ![image](https://github.com/user-attachments/assets/9d55a13d-13c8-47dd-9139-4a5605084928)
 
 
 ### 实时道路状态  
-基于大量用户数据实时计算路况变化  
+基于大量用户速度、道路承载力等数据实时计算路况变化  
 
 ## 🛠️ 技术栈  
 基于 Spring Boot 3.3.3 和 Vue3 的全栈应用，集成 Redis 缓存、RabbitMQ 消息队列及 MySQL 8.30 数据库，提供高性能的 RESTful API 和实时通信能力。
@@ -132,9 +133,8 @@ ENTRYPOINT ["java", "-jar", "/app.jar"]
 
 ## 📌 关键特性
 1. **JWT 认证**：通过 `jjwt-api` 实现无状态认证。
-2. **双 ORM 支持**：同时集成 JPA 和 MyBatis。
-3. **消息队列**：RabbitMQ 处理异步任务（需补充交换机/队列配置示例）。
-4. **实时通知**：WebSocket 支持双向通信。
+2. **消息队列**：RabbitMQ 处理异步任务（需补充交换机/队列配置示例）。
+3. **实时通知**：WebSocket 支持双向通信。
 
 ## ❓ 常见问题
 • **MySQL 驱动兼容性**：确保使用 `mysql-connector-j` 9.x 版本。
